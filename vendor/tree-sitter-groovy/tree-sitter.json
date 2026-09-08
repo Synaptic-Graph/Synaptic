@@ -1,0 +1,38 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "groovy",
+      "camelcase": "Groovy",
+      "title": "Groovy",
+      "scope": "source.groovy",
+      "file-types": ["groovy", "gradle", "gvy", "gy", "jenkinsfile"],
+      "injection-regex": "^groovy$",
+      "highlights": "queries/groovy/highlights.scm",
+      "class-name": "TreeSitterGroovy"
+    }
+  ],
+  "metadata": {
+    "version": "0.3.0",
+    "license": "Apache-2.0 OR MIT",
+    "description": "Apache Groovy grammar for tree-sitter (dekobon fork)",
+    "authors": [
+      {
+        "name": "Elijah Zupancic",
+        "email": "elijah@zupancic.name"
+      }
+    ],
+    "links": {
+      "repository": "https://github.com/dekobon/tree-sitter-groovy"
+    }
+  },
+  "bindings": {
+    "c": true,
+    "go": true,
+    "node": true,
+    "python": true,
+    "rust": true,
+    "swift": true,
+    "zig": false
+  }
+}

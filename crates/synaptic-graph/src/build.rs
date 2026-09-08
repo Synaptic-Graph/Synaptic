@@ -70,7 +70,9 @@ pub fn build_from_parts(
 }
 
 fn is_ast(node: &Node) -> bool {
-    node.is_ast_origin()
+    // Compiler methods also have declaration identity: generated overloads can
+    // share a label and source anchor without being duplicate semantic ghosts.
+    node.is_ast_origin() || node.extra.contains_key("compiler_symbol")
 }
 
 fn has_location(node: &Node) -> bool {
@@ -258,6 +260,22 @@ mod tests {
             cross_repo: false,
             extra: Map::new(),
         }
+    }
+
+    #[test]
+    fn compiler_overloads_are_not_merged_by_label_and_anchor() {
+        let mut a = node("zero", ".Worker()", "Worker.groovy");
+        a.origin = Some("compiler".into());
+        a.extra
+            .insert("compiler_symbol".into(), "Worker#<init>()".into());
+        let mut b = a.clone();
+        b.id = NodeId("one".into());
+        b.extra.insert(
+            "compiler_symbol".into(),
+            "Worker#<init>(java.lang.String)".into(),
+        );
+        let graph = build_from_parts(vec![a, b], vec![], vec![], &BuildOptions::default());
+        assert_eq!(graph.node_count(), 2);
     }
 
     #[test]

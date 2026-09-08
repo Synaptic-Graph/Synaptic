@@ -18,6 +18,19 @@ fn main() {
 
     // (1) Every .rs file under src/, hashed in a stable order (relative path + bytes).
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".into());
+    // Grammar-only upgrades change cached ASTs even when walker source is identical.
+    for manifest in [
+        "Cargo.toml",
+        "../../Cargo.toml",
+        "../../Cargo.lock",
+        "../../vendor/tree-sitter-groovy/src/parser.c",
+        "../../vendor/tree-sitter-groovy/src/scanner.c",
+    ] {
+        println!("cargo:rerun-if-changed={manifest}");
+        if let Ok(bytes) = std::fs::read(Path::new(&manifest_dir).join(manifest)) {
+            bytes.hash(&mut hasher);
+        }
+    }
     let src = Path::new(&manifest_dir).join("src");
     let mut files: Vec<PathBuf> = Vec::new();
     collect_rs(&src, &mut files);

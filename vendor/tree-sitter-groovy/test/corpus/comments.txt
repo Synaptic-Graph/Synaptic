@@ -1,0 +1,124 @@
+==================
+Line comment
+==================
+
+foo // trailing
+bar
+
+---
+
+(source_file
+  (expression_statement (identifier))
+  (line_comment)
+  (expression_statement (identifier)))
+
+==================
+Block comment, non-empty
+==================
+
+foo
+/* hello */
+bar
+
+---
+
+(source_file
+  (expression_statement (identifier))
+  (block_comment)
+  (expression_statement (identifier)))
+
+==================
+Block comment with stars in body
+==================
+
+foo
+/* *** lots of stars *** */
+bar
+
+---
+
+(source_file
+  (expression_statement (identifier))
+  (block_comment)
+  (expression_statement (identifier)))
+
+==================
+Empty block comment with space (issue murtaza64 #16)
+==================
+
+foo
+/* */
+bar
+
+---
+
+(source_file
+  (expression_statement (identifier))
+  (block_comment)
+  (expression_statement (identifier)))
+
+==================
+Groovydoc, non-empty
+==================
+
+foo
+/** A doc
+ *  spanning lines.
+ */
+bar
+
+---
+
+(source_file
+  (expression_statement (identifier))
+  (groovydoc_comment)
+  (expression_statement (identifier)))
+
+==================
+Empty groovydoc /**/ (issue murtaza64 #16)
+==================
+
+foo
+/**/
+bar
+
+---
+
+(source_file
+  (expression_statement (identifier))
+  (groovydoc_comment)
+  (expression_statement (identifier)))
+
+==================
+Tight groovydoc /***/ (issue murtaza64 #16)
+==================
+
+foo
+/***/
+bar
+
+---
+
+(source_file
+  (expression_statement (identifier))
+  (groovydoc_comment)
+  (expression_statement (identifier)))
+
+==================
+Mixed comments back to back
+==================
+
+foo
+// line
+/* block */
+/** doc */
+bar
+
+---
+
+(source_file
+  (expression_statement (identifier))
+  (line_comment)
+  (block_comment)
+  (groovydoc_comment)
+  (expression_statement (identifier)))

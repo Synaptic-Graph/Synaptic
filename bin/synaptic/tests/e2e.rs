@@ -120,7 +120,8 @@ fn extract_then_query_roundtrip() {
         .map(|n| n["id"].as_str().unwrap_or("").to_string())
         .collect();
     assert!(
-        ids.iter().any(|i| i == "src_analysis_py"),
+        ids.iter()
+            .any(|i| i == synaptic_core::file_node_id("src/analysis.py").as_str()),
         "file-node id should be relative; got {ids:?}"
     );
     let tmp_marker = root.file_name().unwrap().to_string_lossy().to_lowercase();
@@ -336,10 +337,11 @@ fn extract_dotnet_and_markdown_structure() {
     );
     // The ProjectReference target id equals Lib.csproj's own file-node id, so the
     // two projects are connected (cross-file via shared id).
-    let imports_lib =
-        graph["links"].as_array().unwrap().iter().any(|e| {
-            e["relation"] == "imports" && e["target"].as_str() == Some("src_lib_lib_csproj")
-        });
+    let imports_lib = graph["links"].as_array().unwrap().iter().any(|e| {
+        e["relation"] == "imports"
+            && e["target"].as_str()
+                == Some(synaptic_core::file_node_id("src/Lib/Lib.csproj").as_str())
+    });
     assert!(
         imports_lib,
         "App.csproj should import Lib.csproj by file id"

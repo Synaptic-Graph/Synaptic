@@ -33,6 +33,19 @@ single language (used in CI), build with `--no-default-features --features lang-
 
 ## Environment variables
 
+### Compiler-assisted extraction
+
+| Variable | Purpose |
+|---|---|
+| `SYNAPTIC_COMPILE_COMMANDS` | Path to a compilation database; otherwise discover `compile_commands.json` at the project root or under `build/` |
+| `SYNAPTIC_NATIVE_COMPILER` | Compatible C/C++ preprocessing driver; defaults to `gcc` |
+| `SYNAPTIC_FORTRAN_COMPILER` | Compatible Fortran preprocessing driver; defaults to `gfortran` |
+| `SYNAPTIC_COMPILER_FACTS` | Groovy compiler-fact export; otherwise use `.synaptic/compiler-facts.json` under the project root |
+| `SYNAPTIC_FORTRAN_FIXED_LINE_LENGTH` | Fixed-form source width; defaults to 72, with 0 meaning unlimited. Per-file compilation flags take precedence |
+
+See [Extraction](Extraction#compiler-assisted-extraction) for build inputs,
+compiler-fact export and diagnostics.
+
 ### LLM backend selection (semantic pass)
 
 The semantic pass auto-detects a backend by checking these in order: Gemini, Kimi, Anthropic,

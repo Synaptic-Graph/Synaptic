@@ -10,34 +10,7 @@ use synaptic_core::{Confidence, Edge, FileType, Node, NodeId, make_id};
 
 use crate::result::{ExtractionResult, ImportRecord, RawCall};
 
-/// Id-safe key for a symbol whose punctuation `make_id` would erase.
-///
-/// `make_id` maps every non-word character to `_` and collapses runs, so `sort!`,
-/// `sort?` and `sort` all normalize to one id. In Ruby, Elixir and Julia those are
-/// *different functions* (`Map.fetch` vs `Map.fetch!`, `valid?`, `push!`), and the
-/// collision silently deleted one of each pair from the graph. Appending a hex tag
-/// of the stripped punctuation keeps them distinct while leaving plain names
-/// untouched.
-pub(crate) fn symbol_key(name: &str) -> String {
-    let mut punctuation: String = name
-        .chars()
-        .filter(|c| !c.is_alphanumeric() && *c != '_')
-        .map(|c| format!("{:x}", c as u32))
-        .collect();
-    // `make_id` trims *and* collapses underscore runs, so the count has to be
-    // encoded, not merely flagged: easyasp ships `Search`, `Search_` and
-    // `Search__` side by side, and a flat marker collapses the last two.
-    let edge_underscores = (name.len() - name.trim_start_matches('_').len())
-        + (name.len() - name.trim_end_matches('_').len());
-    if edge_underscores > 0 {
-        punctuation.push_str(&format!("5f{edge_underscores}"));
-    }
-    if punctuation.is_empty() {
-        name.to_string()
-    } else {
-        format!("{name}_{punctuation}")
-    }
-}
+pub(crate) use crate::paths::symbol_key;
 
 /// Accumulates nodes/edges/raw-calls/imports for one source file, deduping node
 /// ids via `seen`.

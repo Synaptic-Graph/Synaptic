@@ -34,7 +34,7 @@ pub use file_type::FileType;
 pub use fsio::{write_atomic, write_atomic_with};
 pub use graph_data::GraphData;
 pub use hyperedge::Hyperedge;
-pub use id::{NodeId, make_id};
+pub use id::{NodeId, file_node_id, make_id};
 pub use interned::Interned;
 pub use limits::{
     MAX_SERVE_MB_ENV, ServeGuard, max_graph_bytes, max_nodes, max_serve_bytes, max_shard_bytes,
@@ -48,3 +48,5 @@ pub use signature::{Param, Signature};
 pub use span::Span;
 pub use test_path::is_test_path;
 pub use validate::{assert_valid, validate_extraction};
+
+pub mod fortran;

@@ -13,9 +13,77 @@ use std::collections::{HashMap, HashSet};
 use synaptic_core::{Confidence, Edge, FileType, Node, NodeId, make_id};
 use tree_sitter::Node as TsNode;
 
+/// Groovy quoted names use string escapes; graph labels identify the decoded name.
+fn decode_quoted_identifier(text: &str) -> String {
+    let mut chars = text.chars().peekable();
+    let mut decoded = String::new();
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            decoded.push(ch);
+            continue;
+        }
+        let Some(escape) = chars.next() else {
+            decoded.push('\\');
+            break;
+        };
+        let value = match escape {
+            'b' => '\u{8}',
+            't' => '\t',
+            'n' => '\n',
+            'f' => '\u{c}',
+            'r' => '\r',
+            's' => ' ',
+            '\n' => continue,
+            '\r' => {
+                if chars.peek() == Some(&'\n') {
+                    chars.next();
+                }
+                continue;
+            }
+            'u' | '0'..='7' => {
+                let mut digits = String::new();
+                let (radix, count) = if escape == 'u' {
+                    (16, 4)
+                } else {
+                    digits.push(escape);
+                    (8, if escape <= '3' { 2 } else { 1 })
+                };
+                for _ in 0..count {
+                    if chars.peek().is_some_and(|c| c.is_digit(radix)) {
+                        digits.push(chars.next().unwrap());
+                    } else {
+                        break;
+                    }
+                }
+                if let Some(value) = u32::from_str_radix(&digits, radix)
+                    .ok()
+                    .and_then(char::from_u32)
+                {
+                    decoded.push(value);
+                } else {
+                    decoded.push('\\');
+                    if escape == 'u' {
+                        decoded.push('u');
+                    }
+                    decoded.push_str(&digits);
+                }
+                continue;
+            }
+            other => other,
+        };
+        decoded.push(value);
+    }
+    decoded
+}
+
 impl<'tree> Extractor<'_, '_, 'tree> {
     pub(crate) fn text(&self, node: TsNode<'tree>) -> String {
-        node.utf8_text(self.source).unwrap_or("").to_string()
+        let text = node.utf8_text(self.source).unwrap_or("");
+        if node.kind() == "quoted_identifier" && text.starts_with(['\'', '"']) && text.len() >= 2 {
+            decode_quoted_identifier(&text[1..text.len() - 1])
+        } else {
+            text.to_string()
+        }
     }
 
     pub(crate) fn line(node: TsNode<'tree>) -> usize {
@@ -32,6 +100,20 @@ impl<'tree> Extractor<'_, '_, 'tree> {
             end_line: e.row as u32 + 1,
             end_col: e.column as u32 + 1,
         }
+    }
+
+    fn declaration_span(&self, node: TsNode<'tree>) -> synaptic_core::Span {
+        let mut span = Self::span(node);
+        // Error recovery can swallow preceding fields into a method (Groovy's
+        // optional semicolons). The explicit name remains a reliable anchor.
+        if node.has_error()
+            && self.cfg.function_types.contains(&node.kind())
+            && let Some(name) = self.function_name_node(node)
+        {
+            span.start_line = name.start_position().row as u32 + 1;
+            span.start_col = name.start_position().column as u32 + 1;
+        }
+        span
     }
 
     pub(crate) fn add_node(&mut self, id: NodeId, label: String, line: usize) {
@@ -62,13 +144,14 @@ impl<'tree> Extractor<'_, '_, 'tree> {
         visibility: Option<synaptic_core::Visibility>,
         signature: Option<synaptic_core::Signature>,
     ) {
+        let span = self.declaration_span(node);
         if self.seen.insert(id.clone()) {
             let mut n = Node {
                 id,
                 label,
                 file_type: FileType::Code,
                 source_file: self.path.clone().into(),
-                source_location: Some(format!("L{}", node.start_position().row + 1)),
+                source_location: Some(format!("L{}", span.start_line)),
                 community: None,
                 repo: None,
                 extra: Map::new(),
@@ -76,7 +159,7 @@ impl<'tree> Extractor<'_, '_, 'tree> {
                 ..Default::default()
             };
             n.set_kind(kind);
-            n.set_span(Self::span(node));
+            n.set_span(span);
             if let Some(v) = visibility {
                 n.set_visibility(v);
             }
@@ -89,7 +172,8 @@ impl<'tree> Extractor<'_, '_, 'tree> {
             // declaration), without overwriting an already-enriched node.
             if n.kind().is_none() {
                 n.set_kind(kind);
-                n.set_span(Self::span(node));
+                n.set_span(span);
+                n.source_location = Some(format!("L{}", span.start_line));
                 if let Some(v) = visibility {
                     n.set_visibility(v);
                 }
@@ -112,7 +196,7 @@ impl<'tree> Extractor<'_, '_, 'tree> {
             Trait
         } else if k.contains("enum") {
             Enum
-        } else if k.contains("struct") || k.contains("record") {
+        } else if k.contains("struct") || k.contains("record") || k.contains("union") {
             Struct
         } else if k.contains("protocol") {
             Protocol
@@ -296,6 +380,14 @@ impl<'tree> Extractor<'_, '_, 'tree> {
         if let Some(declarator) = self.bound_function_declarator(node) {
             return self.field(declarator, "name");
         }
+        if self.cfg.type_ref_style == Some(TypeRefStyle::Cpp)
+            && let Some(name) = self
+                .c_function_declarator(node)
+                .and_then(|fd| fd.child_by_field_name("declarator"))
+                .filter(|name| name.kind() == "function_declarator")
+        {
+            return Some(name); // NAME(symbol)(parameters): preserve the source name expression.
+        }
         Self::declarator_name(node.child_by_field_name("declarator")?, 0)
     }
 
@@ -319,6 +411,9 @@ impl<'tree> Extractor<'_, '_, 'tree> {
 
     pub(crate) fn function_name(&self, node: TsNode<'tree>) -> Option<String> {
         let name = self.function_name_node(node)?;
+        if name.kind() == "function_declarator" {
+            return Some(self.text(name).replace(char::is_whitespace, ""));
+        }
         if name.kind() == "operator_cast" {
             let raw = self.text(name);
             return Some(
@@ -341,7 +436,7 @@ impl<'tree> Extractor<'_, '_, 'tree> {
         )
     }
 
-    fn declarator_name(node: TsNode<'tree>, depth: usize) -> Option<TsNode<'tree>> {
+    pub(crate) fn declarator_name(node: TsNode<'tree>, depth: usize) -> Option<TsNode<'tree>> {
         if matches!(
             node.kind(),
             "identifier"
@@ -434,9 +529,11 @@ impl<'tree> Extractor<'_, '_, 'tree> {
             match self.cfg.import_style {
                 Some(ImportStyle::Python) => self.python_imports(node, file_nid),
                 Some(ImportStyle::EcmaScript) => self.ecmascript_imports(node, file_nid),
-                Some(ImportStyle::Java) => {
-                    self.dotted_import(node, file_nid, &["scoped_identifier", "identifier"])
-                }
+                Some(ImportStyle::Java) => self.dotted_import(
+                    node,
+                    file_nid,
+                    &["scoped_identifier", "qualified_name", "identifier"],
+                ),
                 Some(ImportStyle::CSharp) => {
                     self.dotted_import(node, file_nid, &["qualified_name", "identifier"])
                 }
@@ -467,7 +564,25 @@ impl<'tree> Extractor<'_, '_, 'tree> {
             self.ecmascript_dynamic_import(node, file_nid);
         }
 
+        if self.cfg.type_ref_style == Some(TypeRefStyle::Cpp)
+            && matches!(t, "type_definition" | "alias_declaration")
+        {
+            let owner = parent_class.cloned().unwrap_or_else(|| NodeId(stem.into()));
+            self.cpp_type_aliases(node, &owner, stem);
+            // A typedef can also define a named aggregate with its own members.
+            if let Some(ty) = node.child_by_field_name("type") {
+                self.walk(ty, file_nid, parent_class, stem, depth + 1);
+            }
+            return;
+        }
+
         if self.cfg.class_types.contains(&t) {
+            if matches!(self.cfg.type_ref_style, Some(TypeRefStyle::Cpp))
+                && t.ends_with("_specifier")
+                && self.body_of(node).is_none()
+            {
+                return; // `struct S *value` is a type use, not a definition.
+            }
             // C++ forward declarations are references, not class definitions.
             if matches!(self.cfg.heritage_style, Some(HeritageStyle::Cpp))
                 && self.body_of(node).is_none()
@@ -573,11 +688,17 @@ impl<'tree> Extractor<'_, '_, 'tree> {
                 return;
             }
             let declaration = self.bound_function_declarator(node).unwrap_or(node);
-            let line = Self::line(declaration);
+            let line = self.declaration_span(declaration).start_line as usize;
             let vis = self.decl_visibility(declaration, &func_name);
             let sig = crate::signature::extract_signature(node, self.source);
             let id_name = if matches!(self.cfg.type_ref_style, Some(TypeRefStyle::Cpp)) {
                 c_family_function_id_part(&func_name)
+            } else if self.function_name_node(node).is_some_and(|name| {
+                name.utf8_text(self.source)
+                    .unwrap_or("")
+                    .starts_with(['\'', '"'])
+            }) {
+                std::borrow::Cow::Owned(crate::paths::symbol_key(&func_name))
             } else {
                 std::borrow::Cow::Borrowed(func_name.as_str())
             };
@@ -599,14 +720,22 @@ impl<'tree> Extractor<'_, '_, 'tree> {
                 }
                 ancestor = parent.parent();
             }
+            let groovy = self.cfg.call_types.contains(&"command_chain");
+            let overload_position = if groovy {
+                format!("{line}:{}", node.start_position().column)
+            } else {
+                line.to_string()
+            };
             let func_nid = if let Some(class_nid) = parent_class {
                 let base = NodeId(make_id(&[class_nid.as_str(), id_name.as_ref()]));
-                let nid = if matches!(
-                    self.cfg.heritage_style,
-                    Some(HeritageStyle::Cpp | HeritageStyle::EcmaScript)
-                ) && self.seen.contains(&base)
+                let nid = if (groovy
+                    || matches!(
+                        self.cfg.heritage_style,
+                        Some(HeritageStyle::Cpp | HeritageStyle::EcmaScript)
+                    ))
+                    && self.seen.contains(&base)
                 {
-                    NodeId(make_id(&[base.as_str(), "overload", &line.to_string()]))
+                    NodeId(make_id(&[base.as_str(), "overload", &overload_position]))
                 } else {
                     base
                 };
@@ -629,10 +758,11 @@ impl<'tree> Extractor<'_, '_, 'tree> {
                 let nid = if (matches!(
                     self.cfg.heritage_style,
                     Some(HeritageStyle::Cpp | HeritageStyle::EcmaScript)
-                ) || standalone_method)
+                ) || standalone_method
+                    || groovy)
                     && self.seen.contains(&base)
                 {
-                    NodeId(make_id(&[base.as_str(), "overload", &line.to_string()]))
+                    NodeId(make_id(&[base.as_str(), "overload", &overload_position]))
                 } else {
                     base
                 };
@@ -653,6 +783,15 @@ impl<'tree> Extractor<'_, '_, 'tree> {
                 self.add_edge(file_nid.clone(), nid.clone(), "contains", line, None);
                 nid
             };
+            if let Some(name) = self.function_name_node(node)
+                && name.kind() == "quoted_identifier"
+                && let Some(function) = self.nodes.iter_mut().find(|n| n.id == func_nid)
+            {
+                function.extra.insert(
+                    "source_name".into(),
+                    name.utf8_text(self.source).unwrap_or("").into(),
+                );
+            }
             if matches!(
                 node.kind(),
                 "function_signature" | "method_signature" | "abstract_method_signature"
@@ -663,6 +802,36 @@ impl<'tree> Extractor<'_, '_, 'tree> {
                     .insert("_declaration_only".into(), serde_json::Value::Bool(true));
             }
             // Type-reference edges from parameter/return annotations.
+            if self.cfg.type_ref_style == Some(TypeRefStyle::Cpp) {
+                let mut c_linkage = !self.cfg.class_types.contains(&"class_specifier");
+                let mut parent = node.parent();
+                while let Some(p) = parent {
+                    if p.kind() == "linkage_specification"
+                        && self.text(p).starts_with("extern \"C\"")
+                    {
+                        c_linkage = true;
+                        break;
+                    }
+                    parent = p.parent();
+                }
+                let internal = parent_class.is_none()
+                    && Self::children(node).iter().any(|n| {
+                        n.kind() == "storage_class_specifier" && self.text(*n) == "static"
+                    });
+                if let Some(function) = self.nodes.iter_mut().find(|n| n.id == func_nid) {
+                    function.extra.insert(
+                        "native_linkage".into(),
+                        (if internal {
+                            "internal"
+                        } else if c_linkage {
+                            "c"
+                        } else {
+                            "cpp"
+                        })
+                        .into(),
+                    );
+                }
+            }
             match self.cfg.type_ref_style {
                 Some(TypeRefStyle::Python) => self.python_type_refs(node, &func_nid, stem, line),
                 Some(TypeRefStyle::EcmaScript) => {
@@ -867,7 +1036,34 @@ impl<'tree> Extractor<'_, '_, 'tree> {
     pub(crate) fn pre_scan(&mut self, root: TsNode<'tree>) {
         let mut stack = vec![root];
         while let Some(n) = stack.pop() {
+            if self.cfg.type_ref_style == Some(TypeRefStyle::Cpp)
+                && matches!(n.kind(), "type_definition" | "alias_declaration")
+            {
+                let mut ancestor = n.parent();
+                let mut scoped = false;
+                while let Some(parent) = ancestor {
+                    scoped |= self.cfg.class_types.contains(&parent.kind())
+                        || self.cfg.function_boundary_types.contains(&parent.kind());
+                    ancestor = parent.parent();
+                }
+                let mut cursor = n.walk();
+                if !scoped && n.kind() == "type_definition" {
+                    for declarator in n.children_by_field_name("declarator", &mut cursor) {
+                        if let Some(name) = Self::declarator_name(declarator, 0) {
+                            self.declared_types.insert(self.text(name));
+                        }
+                    }
+                } else if !scoped
+                    && n.kind() == "alias_declaration"
+                    && let Some(name) = n.child_by_field_name("name")
+                {
+                    self.declared_types.insert(self.text(name));
+                }
+            }
             if self.cfg.class_types.contains(&n.kind())
+                && !(matches!(self.cfg.type_ref_style, Some(TypeRefStyle::Cpp))
+                    && n.kind().ends_with("_specifier")
+                    && self.body_of(n).is_none())
                 && let Some(name) = self.field(n, self.cfg.name_field)
             {
                 let name = self.text(name);
@@ -892,8 +1088,9 @@ impl<'tree> Extractor<'_, '_, 'tree> {
         let mut label_to_nid: HashMap<String, NodeId> = HashMap::new();
         let mut ambiguous = HashSet::new();
         for n in self.nodes.iter().filter(|n| !n.source_file.is_empty()) {
-            let key = n.label.trim_matches(|c| c == '(' || c == ')').to_string();
-            if matches!(self.cfg.heritage_style, Some(HeritageStyle::Cpp))
+            let key = n.label.strip_suffix("()").unwrap_or(&n.label).to_string();
+            if (matches!(self.cfg.heritage_style, Some(HeritageStyle::Cpp))
+                || self.cfg.call_types.contains(&"command_chain"))
                 && label_to_nid.contains_key(&key)
             {
                 ambiguous.insert(key);
@@ -1055,6 +1252,7 @@ impl<'tree> Extractor<'_, '_, 'tree> {
     fn callee_name(&self, call: TsNode<'tree>) -> Option<(String, bool)> {
         if matches!(self.cfg.import_style, Some(ImportStyle::Java))
             && call.kind() == "method_invocation"
+            && self.cfg.call_function_field == "name"
         {
             let name = self.text(self.field(call, "name")?);
             return Some(match self.field(call, "object") {
@@ -1069,7 +1267,9 @@ impl<'tree> Extractor<'_, '_, 'tree> {
                 None => (name, false),
             });
         }
-        let func = if self.cfg.call_function_field.is_empty() {
+        let func = if call.kind() == "command_chain" {
+            self.field(call, "receiver")?
+        } else if self.cfg.call_function_field.is_empty() {
             Self::children(call).into_iter().find(|c| c.is_named())?
         } else {
             // Fall back to a `name` field for grammars with separate call-node
@@ -1081,6 +1281,28 @@ impl<'tree> Extractor<'_, '_, 'tree> {
                 None => self.field(call, "name")?,
             }
         };
+        if call.child_by_field_name("closure").is_some() && func.kind() == "method_invocation" {
+            return None; // Groovy trailing closure: the inner invocation owns the call.
+        }
+        if self.cfg.type_ref_style == Some(TypeRefStyle::Cpp) && func.kind() == "call_expression" {
+            return Some((self.text(func).replace(char::is_whitespace, ""), false));
+        }
+        if matches!(self.cfg.import_style, Some(ImportStyle::Java))
+            && self.cfg.call_accessor_node_types.contains(&func.kind())
+        {
+            let member = self
+                .field(func, "field")
+                .or_else(|| self.field(func, "property"))?;
+            let object = self.field(func, "object")?;
+            return Some((
+                format!(
+                    "{}.{}",
+                    self.text(object).replace(char::is_whitespace, ""),
+                    self.text(member)
+                ),
+                true,
+            ));
+        }
         if matches!(func.kind(), "identifier" | "simple_identifier") {
             Some((self.text(func), false))
         } else if self.cfg.call_accessor_node_types.contains(&func.kind()) {

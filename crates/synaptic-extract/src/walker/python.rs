@@ -46,7 +46,7 @@ impl<'tree> Extractor<'_, '_, 'tree> {
                 let raw = self.text(module_node);
                 let (tgt, is_relative) = if raw.starts_with('.') {
                     let path = resolve_relative_import(&self.path, &raw);
-                    (NodeId(make_id(&[&path])), true)
+                    (crate::paths::file_node_id(&path), true)
                 } else {
                     (NodeId(make_id(&[raw.as_str()])), false)
                 };

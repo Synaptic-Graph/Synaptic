@@ -340,12 +340,35 @@ family = "scientific-fortran"
 tier = "medium"
 languages = ["fortran"]
 
+# Parser-upgrade holdout: a distinct Groovy HTTP client and a Fortran application.
+[[repo]]
+url = "https://github.com/http-builder-ng/http-builder-ng"
+sha = "3f97e2278d6d2e71a3d16c0561146d8f096e9f70"
+family = "groovy-http-client"
+tier = "small"
+languages = ["groovy"]
+
+[[repo]]
+url = "https://github.com/fortran-lang/fpm"
+sha = "9a4433dd19183b548cd67afbd32992f53dc2b987"
+family = "fortran-package-manager"
+tier = "small"
+languages = ["fortran"]
+
 [[repo]]
 url = "https://github.com/Reference-LAPACK/lapack"
 sha = "51b349470b3b26c948d068deb45c9b120a47ed32"
 family = "scientific-fortran"
 tier = "large"
 languages = ["fortran"]
+
+# Fixed-form holdout with C translations sharing the same routine/file names.
+[[repo]]
+url = "https://github.com/devernay/cminpack"
+sha = "32d343ac33ac297594b5ffac57741e5615b4bb07"
+family = "scientific-fortran"
+tier = "small"
+languages = ["fortran", "c"]
 
 [[repo]]
 url = "https://github.com/github/codeql"
@@ -475,3 +498,18 @@ sha = "ddcb82b1f5bfd1c779eca7553e1abf0bcadee4d0"
 family = "dotnet-razor"
 tier = "medium"
 languages = ["razor", "csharp"]
+
+# Independent holdouts for the September language follow-up.
+[[repo]]
+url = "https://github.com/jwagenleitner/groovy-wslite"
+sha = "4457c93354f6c20b1c32b689469ef5794037db8b"
+family = "groovy-http"
+tier = "small"
+languages = ["groovy"]
+
+[[repo]]
+url = "https://github.com/fortran-lang/fftpack"
+sha = "0fffe7c05a918363a7cc12ae138a695afd115f36"
+family = "fortran-numerical"
+tier = "small"
+languages = ["fortran"]

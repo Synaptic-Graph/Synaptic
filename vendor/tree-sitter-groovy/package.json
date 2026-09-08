@@ -1,0 +1,88 @@
+{
+  "name": "@dekobon/tree-sitter-groovy",
+  "version": "0.3.0",
+  "description": "Apache Groovy grammar for tree-sitter (dekobon fork)",
+  "main": "bindings/node",
+  "types": "bindings/node",
+  "keywords": [
+    "tree-sitter",
+    "parser",
+    "lexer",
+    "groovy",
+    "jenkins",
+    "gradle",
+    "spock",
+    "incremental",
+    "parsing"
+  ],
+  "files": [
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "grammar.js",
+    "binding.gyp",
+    "prebuilds/**",
+    "bindings/node/*",
+    "queries/*",
+    "src/**",
+    "tree-sitter.json",
+    "*.wasm"
+  ],
+  "homepage": "https://github.com/dekobon/tree-sitter-groovy",
+  "bugs": {
+    "url": "https://github.com/dekobon/tree-sitter-groovy/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dekobon/tree-sitter-groovy.git"
+  },
+  "scripts": {
+    "install": "node-gyp-build",
+    "prestart": "tree-sitter build --wasm",
+    "start": "tree-sitter playground",
+    "test": "node --test bindings/node/*_test.js",
+    "lint": "eslint .",
+    "prebuildify": "prebuildify --napi --strip"
+  },
+  "author": {
+    "email": "elijah@zupancic.name",
+    "name": "Elijah Zupancic"
+  },
+  "license": "Apache-2.0 OR MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "node-addon-api": "^8.7.0",
+    "node-gyp-build": "^4.8.4"
+  },
+  "peerDependencies": {
+    "tree-sitter": "^0.25.0"
+  },
+  "peerDependenciesMeta": {
+    "tree-sitter": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "eslint": "^9.39.4",
+    "eslint-config-treesitter": "^1.0.2",
+    "prebuildify": "^6.0.1",
+    "tree-sitter-cli": "^0.26.13"
+  },
+  "tree-sitter": [
+    {
+      "scope": "source.groovy",
+      "injection-regex": "^groovy$",
+      "file-types": [
+        "groovy",
+        "gradle",
+        "gvy",
+        "gy",
+        "jenkinsfile"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1174 @@
+==================
+For-in with identifier collection
+==================
+
+for (x in xs) doIt()
+
+---
+
+(source_file
+  (for_in_statement
+    variable: (identifier)
+    value: (identifier)
+    body: (expression_statement
+      (method_invocation
+        function: (identifier)
+        arguments: (argument_list)))))
+
+==================
+For-in with list literal
+==================
+
+for (i in [1, 2, 3]) print(i)
+
+---
+
+(source_file
+  (for_in_statement
+    variable: (identifier)
+    value: (list_literal
+      (number_literal)
+      (number_literal)
+      (number_literal))
+    body: (expression_statement
+      (method_invocation
+        function: (identifier)
+        arguments: (argument_list (identifier))))))
+
+==================
+For-in with range
+==================
+
+for (i in 0..<n) f(i)
+
+---
+
+(source_file
+  (for_in_statement
+    variable: (identifier)
+    value: (range_expression
+      start: (number_literal)
+      end: (identifier))
+    body: (expression_statement
+      (method_invocation
+        function: (identifier)
+        arguments: (argument_list (identifier))))))
+
+==================
+For-in with block body
+==================
+
+for (item in items) { process(item) }
+
+---
+
+(source_file
+  (for_in_statement
+    variable: (identifier)
+    value: (identifier)
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list (identifier)))))))
+
+==================
+C-style for with all parts
+==================
+
+for (i = 0; i < n; i++) f(i)
+
+---
+
+(source_file
+  (for_statement
+    init: (assignment_expression
+      left: (identifier)
+      right: (number_literal))
+    condition: (binary_expression
+      left: (identifier)
+      right: (identifier))
+    update: (update_expression
+      operand: (identifier))
+    body: (expression_statement
+      (method_invocation
+        function: (identifier)
+        arguments: (argument_list (identifier))))))
+
+==================
+Infinite for loop
+==================
+
+for (;;) body()
+
+---
+
+(source_file
+  (for_statement
+    body: (expression_statement
+      (method_invocation
+        function: (identifier)
+        arguments: (argument_list)))))
+
+==================
+For loop with only condition
+==================
+
+for (; i < 10;) ++i
+
+---
+
+(source_file
+  (for_statement
+    condition: (binary_expression
+      left: (identifier)
+      right: (number_literal))
+    body: (expression_statement
+      (unary_update_expression
+        operand: (identifier)))))
+
+==================
+Nested for-in
+==================
+
+for (i in xs) for (j in ys) f(i, j)
+
+---
+
+(source_file
+  (for_in_statement
+    variable: (identifier)
+    value: (identifier)
+    body: (for_in_statement
+      variable: (identifier)
+      value: (identifier)
+      body: (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list
+            (identifier)
+            (identifier)))))))
+
+==================
+C-style for with typed init
+==================
+
+for (int i = 0; i < 3; i++) { a() }
+
+---
+
+(source_file
+  (for_statement
+    init: (local_variable_declaration
+      type: (type_identifier)
+      name: (identifier)
+      value: (number_literal))
+    condition: (binary_expression
+      left: (identifier)
+      right: (number_literal))
+    update: (update_expression
+      operand: (identifier))
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))))
+
+==================
+C-style for with def init
+==================
+
+for (def i = 0; i < 3; i++) { a() }
+
+---
+
+(source_file
+  (for_statement
+    init: (local_variable_declaration
+      (variable_declarator
+        name: (identifier)
+        value: (number_literal)))
+    condition: (binary_expression
+      left: (identifier)
+      right: (number_literal))
+    update: (update_expression
+      operand: (identifier))
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))))
+
+==================
+If statement with block
+==================
+
+if (x) { foo }
+
+---
+
+(source_file
+  (if_statement
+    condition: (identifier)
+    consequence: (block
+      (expression_statement (identifier)))))
+
+==================
+If statement with single statement body
+==================
+
+if (x) foo
+
+---
+
+(source_file
+  (if_statement
+    condition: (identifier)
+    consequence: (expression_statement (identifier))))
+
+==================
+If else
+==================
+
+if (x) { foo } else { bar }
+
+---
+
+(source_file
+  (if_statement
+    condition: (identifier)
+    consequence: (block
+      (expression_statement (identifier)))
+    alternative: (block
+      (expression_statement (identifier)))))
+
+==================
+If else with single statement branches
+==================
+
+if (x) foo else bar
+
+---
+
+(source_file
+  (if_statement
+    condition: (identifier)
+    consequence: (expression_statement (identifier))
+    alternative: (expression_statement (identifier))))
+
+==================
+If else if else chain
+==================
+
+if (a) x else if (b) y else z
+
+---
+
+(source_file
+  (if_statement
+    condition: (identifier)
+    consequence: (expression_statement (identifier))
+    alternative: (if_statement
+      condition: (identifier)
+      consequence: (expression_statement (identifier))
+      alternative: (expression_statement (identifier)))))
+
+==================
+If with complex condition
+==================
+
+if (a < b && c) foo
+
+---
+
+(source_file
+  (if_statement
+    condition: (binary_expression
+      left: (binary_expression
+        left: (identifier)
+        right: (identifier))
+      right: (identifier))
+    consequence: (expression_statement (identifier))))
+
+==================
+While loop with block
+==================
+
+while (cond) { body }
+
+---
+
+(source_file
+  (while_statement
+    condition: (identifier)
+    body: (block
+      (expression_statement (identifier)))))
+
+==================
+While loop with single statement body
+==================
+
+while (cond) action
+
+---
+
+(source_file
+  (while_statement
+    condition: (identifier)
+    body: (expression_statement (identifier))))
+
+==================
+While with method call as condition
+==================
+
+while (iter.hasNext()) consume()
+
+---
+
+(source_file
+  (while_statement
+    condition: (method_invocation
+      function: (field_access
+        object: (identifier)
+        field: (identifier))
+      arguments: (argument_list))
+    body: (expression_statement
+      (method_invocation
+        function: (identifier)
+        arguments: (argument_list)))))
+
+==================
+Nested if inside while
+==================
+
+while (a) { if (b) c }
+
+---
+
+(source_file
+  (while_statement
+    condition: (identifier)
+    body: (block
+      (if_statement
+        condition: (identifier)
+        consequence: (expression_statement (identifier))))))
+
+==================
+Bare return
+==================
+
+return
+
+---
+
+(source_file
+  (return_statement))
+
+==================
+Return with value
+==================
+
+return x
+
+---
+
+(source_file
+  (return_statement (identifier)))
+
+==================
+Return with expression
+==================
+
+return a + b
+
+---
+
+(source_file
+  (return_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Bare break
+==================
+
+break
+
+---
+
+(source_file
+  (break_statement))
+
+==================
+Break with label
+==================
+
+break outer
+
+---
+
+(source_file
+  (break_statement
+    label: (identifier)))
+
+==================
+Bare continue
+==================
+
+continue
+
+---
+
+(source_file
+  (continue_statement))
+
+==================
+Continue with label
+==================
+
+continue inner
+
+---
+
+(source_file
+  (continue_statement
+    label: (identifier)))
+
+==================
+Throw
+==================
+
+throw new Exception()
+
+---
+
+(source_file
+  (throw_statement
+    (object_creation_expression
+      type: (type_identifier)
+      arguments: (argument_list))))
+
+==================
+Throw with simple identifier
+==================
+
+throw e
+
+---
+
+(source_file
+  (throw_statement
+    (identifier)))
+
+==================
+Assert
+==================
+
+assert x
+
+---
+
+(source_file
+  (assert_statement
+    (identifier)))
+
+==================
+Assert with message
+==================
+
+assert x == 1 : 'x must be one'
+
+---
+
+(source_file
+  (assert_statement
+    (binary_expression
+      left: (identifier)
+      right: (number_literal))
+    message: (string_literal)))
+
+==================
+Do while
+==================
+
+do { foo } while (cond)
+
+---
+
+(source_file
+  (do_while_statement
+    body: (block
+      (expression_statement (identifier)))
+    condition: (identifier)))
+
+==================
+Do while with single statement body
+==================
+
+do foo while (cond)
+
+---
+
+(source_file
+  (do_while_statement
+    body: (expression_statement (identifier))
+    condition: (identifier)))
+
+==================
+Return inside if
+==================
+
+if (x) return y
+
+---
+
+(source_file
+  (if_statement
+    condition: (identifier)
+    consequence: (return_statement
+      (identifier))))
+
+==================
+Simple labeled statement
+==================
+
+outer: foo
+
+---
+
+(source_file
+  (labeled_statement
+    label: (identifier)
+    statement: (expression_statement (identifier))))
+
+==================
+Labeled while loop
+==================
+
+outer: while (cond) { foo() }
+
+---
+
+(source_file
+  (labeled_statement
+    label: (identifier)
+    statement: (while_statement
+      condition: (identifier)
+      body: (block
+        (expression_statement
+          (method_invocation
+            function: (identifier)
+            arguments: (argument_list)))))))
+
+==================
+Labeled for loop with labeled break
+==================
+
+outer: for (i in xs) {
+    break outer
+}
+
+---
+
+(source_file
+  (labeled_statement
+    label: (identifier)
+    statement: (for_in_statement
+      variable: (identifier)
+      value: (identifier)
+      body: (block
+        (break_statement
+          label: (identifier))))))
+
+==================
+Labeled nested loops
+==================
+
+outer: for (i in xs) inner: for (j in ys) f(i, j)
+
+---
+
+(source_file
+  (labeled_statement
+    label: (identifier)
+    statement: (for_in_statement
+      variable: (identifier)
+      value: (identifier)
+      body: (labeled_statement
+        label: (identifier)
+        statement: (for_in_statement
+          variable: (identifier)
+          value: (identifier)
+          body: (expression_statement
+            (method_invocation
+              function: (identifier)
+              arguments: (argument_list
+                (identifier)
+                (identifier)))))))))
+
+==================
+Bare pipeline block
+==================
+
+pipeline { }
+
+---
+
+(source_file
+  (pipeline_statement
+    body: (closure)))
+
+==================
+Pipeline followed by def (murtaza64 #37 anchor)
+==================
+
+pipeline {}
+def foo = 5
+
+---
+
+(source_file
+  (pipeline_statement
+    body: (closure))
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (number_literal))))
+
+==================
+Pipeline with parenthesised body content
+==================
+
+pipeline {
+    agent(any)
+    stages({
+        stage('build', {
+            steps({ sh('make') })
+        })
+    })
+}
+
+---
+
+(source_file
+  (pipeline_statement
+    body: (closure
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list (identifier))))
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list
+            (closure
+              (expression_statement
+                (method_invocation
+                  function: (identifier)
+                  arguments: (argument_list
+                    (string_literal)
+                    (closure
+                      (expression_statement
+                        (method_invocation
+                          function: (identifier)
+                          arguments: (argument_list
+                            (closure
+                              (expression_statement
+                                (method_invocation
+                                  function: (identifier)
+                                  arguments: (argument_list (string_literal)))))))))))))))))))
+
+==================
+Pipeline between other statements
+==================
+
+def before = 1
+pipeline { }
+def after = 2
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (number_literal)))
+  (pipeline_statement
+    body: (closure))
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (number_literal))))
+
+==================
+Classic switch with one case
+==================
+
+switch (x) { case 1: foo }
+
+---
+
+(source_file
+  (expression_statement
+    (switch_expression
+      value: (identifier)
+      body: (switch_block
+        (switch_case
+          value: (number_literal)
+          (expression_statement (identifier)))))))
+
+==================
+Classic switch with default
+==================
+
+switch (x) { case 1: foo default: bar }
+
+---
+
+(source_file
+  (expression_statement
+    (switch_expression
+      value: (identifier)
+      body: (switch_block
+        (switch_case
+          value: (number_literal)
+          (expression_statement (identifier)))
+        (switch_default
+          (expression_statement (identifier)))))))
+
+==================
+Arrow switch single case
+==================
+
+switch (x) { case 1 -> foo }
+
+---
+
+(source_file
+  (expression_statement
+    (switch_expression
+      value: (identifier)
+      body: (switch_block
+        (switch_arrow_case
+          value: (number_literal)
+          body: (expression_statement (identifier)))))))
+
+==================
+Arrow switch multiple cases
+==================
+
+switch (c) {
+    case 'a' -> 1
+    case 'b' -> 2
+    case 'c' -> 3
+}
+
+---
+
+(source_file
+  (expression_statement
+    (switch_expression
+      value: (identifier)
+      body: (switch_block
+        (switch_arrow_case
+          value: (string_literal)
+          body: (expression_statement (number_literal)))
+        (switch_arrow_case
+          value: (string_literal)
+          body: (expression_statement (number_literal)))
+        (switch_arrow_case
+          value: (string_literal)
+          body: (expression_statement (number_literal)))))))
+
+==================
+Arrow switch with block body
+==================
+
+switch (x) { case 1 -> { a() } }
+
+---
+
+(source_file
+  (expression_statement
+    (switch_expression
+      value: (identifier)
+      body: (switch_block
+        (switch_arrow_case
+          value: (number_literal)
+          body: (block
+            (expression_statement
+              (method_invocation
+                function: (identifier)
+                arguments: (argument_list)))))))))
+
+==================
+Arrow switch with default
+==================
+
+switch (x) { case 1 -> a default -> b }
+
+---
+
+(source_file
+  (expression_statement
+    (switch_expression
+      value: (identifier)
+      body: (switch_block
+        (switch_arrow_case
+          value: (number_literal)
+          body: (expression_statement (identifier)))
+        (switch_default
+          body: (expression_statement (identifier)))))))
+
+==================
+Empty switch body
+==================
+
+switch (x) { }
+
+---
+
+(source_file
+  (expression_statement
+    (switch_expression
+      value: (identifier)
+      body: (switch_block))))
+
+==================
+Switch with field-access case value (murtaza64 #36 anchor shape)
+==================
+
+switch (c) {
+    case Color.R -> 'r'
+    case Color.G -> 'g'
+}
+
+---
+
+(source_file
+  (expression_statement
+    (switch_expression
+      value: (identifier)
+      body: (switch_block
+        (switch_arrow_case
+          value: (field_access
+            object: (identifier)
+            field: (identifier))
+          body: (expression_statement (string_literal)))
+        (switch_arrow_case
+          value: (field_access
+            object: (identifier)
+            field: (identifier))
+          body: (expression_statement (string_literal)))))))
+
+==================
+Try catch
+==================
+
+try { risky() } catch (Exception e) { handle(e) }
+
+---
+
+(source_file
+  (try_statement
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))
+    (catch_clause
+      parameter: (catch_formal_parameter
+        type: (type_identifier)
+        name: (identifier))
+      body: (block
+        (expression_statement
+          (method_invocation
+            function: (identifier)
+            arguments: (argument_list (identifier))))))))
+
+==================
+Try finally
+==================
+
+try { foo() } finally { cleanup() }
+
+---
+
+(source_file
+  (try_statement
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))
+    (finally_clause
+      body: (block
+        (expression_statement
+          (method_invocation
+            function: (identifier)
+            arguments: (argument_list)))))))
+
+==================
+Try catch finally
+==================
+
+try { foo() } catch (E e) { handle() } finally { cleanup() }
+
+---
+
+(source_file
+  (try_statement
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))
+    (catch_clause
+      parameter: (catch_formal_parameter
+        type: (type_identifier)
+        name: (identifier))
+      body: (block
+        (expression_statement
+          (method_invocation
+            function: (identifier)
+            arguments: (argument_list)))))
+    (finally_clause
+      body: (block
+        (expression_statement
+          (method_invocation
+            function: (identifier)
+            arguments: (argument_list)))))))
+
+==================
+Multiple catch clauses
+==================
+
+try { foo() } catch (A e) { a() } catch (B e) { b() }
+
+---
+
+(source_file
+  (try_statement
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))
+    (catch_clause
+      parameter: (catch_formal_parameter
+        type: (type_identifier)
+        name: (identifier))
+      body: (block
+        (expression_statement
+          (method_invocation
+            function: (identifier)
+            arguments: (argument_list)))))
+    (catch_clause
+      parameter: (catch_formal_parameter
+        type: (type_identifier)
+        name: (identifier))
+      body: (block
+        (expression_statement
+          (method_invocation
+            function: (identifier)
+            arguments: (argument_list)))))))
+
+==================
+Multi-catch (murtaza64 #39 anchor)
+==================
+
+try { risky() } catch (IOException | RuntimeException e) { handle(e) }
+
+---
+
+(source_file
+  (try_statement
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))
+    (catch_clause
+      parameter: (catch_formal_parameter
+        type: (multi_type
+          (type_identifier)
+          (type_identifier))
+        name: (identifier))
+      body: (block
+        (expression_statement
+          (method_invocation
+            function: (identifier)
+            arguments: (argument_list (identifier))))))))
+
+==================
+Multi-catch three types
+==================
+
+try { a() } catch (A | B | C e) { f() }
+
+---
+
+(source_file
+  (try_statement
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))
+    (catch_clause
+      parameter: (catch_formal_parameter
+        type: (multi_type
+          (type_identifier)
+          (type_identifier)
+          (type_identifier))
+        name: (identifier))
+      body: (block
+        (expression_statement
+          (method_invocation
+            function: (identifier)
+            arguments: (argument_list)))))))
+
+==================
+Try with resource
+==================
+
+try (Foo f = open()) { f }
+
+---
+
+(source_file
+  (try_statement
+    resources: (resource_specification
+      (resource
+        type: (type_identifier)
+        name: (identifier)
+        value: (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))
+    body: (block
+      (expression_statement (identifier)))))
+
+==================
+Try with multiple resources
+==================
+
+try (Foo a = mk(); Bar b = mk()) { a }
+
+---
+
+(source_file
+  (try_statement
+    resources: (resource_specification
+      (resource
+        type: (type_identifier)
+        name: (identifier)
+        value: (method_invocation
+          function: (identifier)
+          arguments: (argument_list)))
+      (resource
+        type: (type_identifier)
+        name: (identifier)
+        value: (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))
+    body: (block
+      (expression_statement (identifier)))))
+
+==================
+Try with resource and catch
+==================
+
+try (Foo f = open()) { use(f) } catch (E e) { handle(e) }
+
+---
+
+(source_file
+  (try_statement
+    resources: (resource_specification
+      (resource
+        type: (type_identifier)
+        name: (identifier)
+        value: (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list (identifier)))))
+    (catch_clause
+      parameter: (catch_formal_parameter
+        type: (type_identifier)
+        name: (identifier))
+      body: (block
+        (expression_statement
+          (method_invocation
+            function: (identifier)
+            arguments: (argument_list (identifier))))))))
+
+==================
+Yield in switch arrow case
+==================
+
+switch (x) {
+    case 1 -> yield 'one'
+    default -> yield 'other'
+}
+
+---
+
+(source_file
+  (expression_statement
+    (switch_expression
+      value: (identifier)
+      body: (switch_block
+        (switch_arrow_case
+          value: (number_literal)
+          body: (yield_statement (string_literal)))
+        (switch_default
+          body: (yield_statement (string_literal)))))))
+
+==================
+Yield in classic case
+==================
+
+switch (x) {
+    case 1: yield 1
+    default: yield 0
+}
+
+---
+
+(source_file
+  (expression_statement
+    (switch_expression
+      value: (identifier)
+      body: (switch_block
+        (switch_case
+          value: (number_literal)
+          (yield_statement (number_literal)))
+        (switch_default
+          (yield_statement (number_literal)))))))
+
+==================
+Yield with expression
+==================
+
+switch (x) {
+    case 1 -> yield a + b
+}
+
+---
+
+(source_file
+  (expression_statement
+    (switch_expression
+      value: (identifier)
+      body: (switch_block
+        (switch_arrow_case
+          value: (number_literal)
+          body: (yield_statement
+            (binary_expression
+              left: (identifier)
+              right: (identifier))))))))

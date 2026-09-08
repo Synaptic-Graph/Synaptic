@@ -119,6 +119,19 @@ pub(crate) fn normalize_c_family_source(
             i += 1;
         }
         let token = &source[start..i];
+        // GNU's type predicate takes types, not value arguments. The C grammar
+        // cannot parse multiword types here. Its operands are unevaluated, so
+        // retain a scalar placeholder without inventing calls or moving spans.
+        if token == b"__builtin_types_compatible_p"
+            && let Some(end) = next_non_whitespace(source, i)
+                .filter(|&p| source[p] == b'(')
+                .and_then(|p| matching_paren(source, p))
+        {
+            blank_preserving_lines(&mut normalized, source, start, end + 1);
+            normalized.as_mut().unwrap()[start] = b'0';
+            i = end + 1;
+            continue;
+        }
         if matches!(token, b"__declspec" | b"__attribute__") {
             let end = next_non_whitespace(source, i)
                 .filter(|&p| source[p] == b'(')
@@ -171,9 +184,16 @@ pub(crate) fn normalize_c_family_source(
 
         let open = next_non_whitespace(source, i).filter(|&p| source[p] == b'(');
         let close = open.and_then(|p| matching_paren(source, p));
-        let wraps_block = close
+        if close
             .and_then(|p| next_non_whitespace(source, p + 1))
-            .is_some_and(|p| source[p] == b'{');
+            .is_some_and(|p| source[p] == b'(')
+        {
+            continue; // NAME(symbol)(parameters) is a name expression, not an annotation.
+        }
+        let wraps_block = line_prefix_is_whitespace(source, start)
+            && close
+                .and_then(|p| next_non_whitespace(source, p + 1))
+                .is_some_and(|p| source[p] == b'{');
         let structural = is_standalone_line(source, start, i)
             && (token.windows(6).any(|part| part == b"BEGIN_")
                 || token.windows(4).any(|part| part == b"END_"));
@@ -239,6 +259,7 @@ fn declaration_macro(token: &[u8]) -> bool {
             "CONSTEVAL",
             "INLINE",
             "VISIBILITY",
+            "WEAK_SYMBOL",
             "ATTRIBUTE",
             "DECLSPEC",
             "DIAGNOSTIC",
@@ -383,8 +404,8 @@ pub(crate) fn c_family_function_id_part(name: &str) -> Cow<'_, str> {
             || (ch == '_'
                 && index > 0
                 && index + 1 < chars.len()
-                && chars[index - 1] != '_'
-                && chars[index + 1] != '_')
+                && chars[index - 1].is_alphanumeric()
+                && chars[index + 1].is_alphanumeric())
     };
     if chars.iter().enumerate().all(|(index, &ch)| safe(index, ch)) {
         return Cow::Borrowed(name);
@@ -474,7 +495,13 @@ pub fn extract_with_config(path: &str, source: &[u8], cfg: &LanguageConfig) -> E
         .unwrap_or_else(|| path.to_string());
     ex.add_node(file_nid.clone(), file_label, 1);
 
-    let stem = file_stem(path);
+    let stem = if matches!(cfg.type_ref_style, Some(TypeRefStyle::Cpp)) {
+        // C/C++ source variants such as driver.c and driver_.c contain distinct
+        // definitions. Slugging an extensionless path silently merges them.
+        file_nid.as_str().to_string()
+    } else {
+        file_stem(path)
+    };
     ex.pre_scan(tree.root_node());
     ex.walk(tree.root_node(), &file_nid, None, &stem, 0);
     ex.run_call_pass(tree.root_node());

@@ -41,7 +41,6 @@ use std::path::{Path, PathBuf};
 use rayon::prelude::*;
 use synaptic_core::{Edge, GraphData, Hyperedge, Node, NodeId};
 use synaptic_detect::{DetectResult, FileType, Manifest, classify_file, detect_inputs};
-use synaptic_extract::cached_extract_source;
 use synaptic_graph::{
     BuildOptions, ClusterOptions, KnowledgeGraph, apply_communities, build_from_parts, cluster,
     deduplicate_entities, guard_shrink, link_dynamic_refs, norm_source_file,
@@ -162,10 +161,21 @@ pub fn merge_incremental(
         .cloned()
         .collect();
 
-    let mut nodes = fresh_nodes;
-    nodes.extend(preserved_nodes);
     let mut edges = fresh_edges;
     edges.extend(preserved_edges);
+    let referenced: HashSet<_> = edges
+        .iter()
+        .flat_map(|e| [&e.source, &e.target])
+        .chain(existing.hyperedges.iter().flat_map(|e| &e.nodes))
+        .collect();
+    let mut nodes = fresh_nodes;
+    // A removed import must not leave its old, unlocated AST stub behind.
+    // Fresh stubs and semantic nodes retain their normal preservation rules.
+    nodes.extend(
+        preserved_nodes
+            .into_iter()
+            .filter(|n| !is_ast(n) || !n.source_file.is_empty() || referenced.contains(&n.id)),
+    );
     (nodes, edges, existing.hyperedges.clone())
 }
 
@@ -398,6 +408,119 @@ pub fn rebuild(
     rebuild_with_detect(opts, changes, existing, &det)
 }
 
+/// Reverse module/call dependencies already recorded in the graph. Deletions
+/// use the old module names, so removing a provider invalidates its consumers.
+fn fortran_dependents(
+    graph: Option<&GraphData>,
+    root: &Path,
+    paths: &[PathBuf],
+) -> HashSet<String> {
+    let mut affected: HashSet<_> = paths
+        .iter()
+        .map(|p| {
+            let p = if p.is_absolute() {
+                p.clone()
+            } else {
+                root.join(p)
+            };
+            synaptic_detect::relative_key(&p, root)
+        })
+        .collect();
+    let Some(graph) = graph else {
+        return affected;
+    };
+    let nodes: HashMap<_, _> = graph.nodes.iter().map(|n| (&n.id, n)).collect();
+    let mut modules: HashMap<String, HashSet<String>> = HashMap::new();
+    for node in &graph.nodes {
+        if node.extra.get("fortran_scope").and_then(|v| v.as_str()) == Some("module") {
+            modules
+                .entry(node.label.to_ascii_lowercase())
+                .or_default()
+                .insert(node.source_file.replace('\\', "/"));
+        }
+    }
+    // Include newly introduced module names before resolving existing USE edges.
+    for path in paths {
+        let absolute = root.join(path);
+        let relative = synaptic_detect::relative_key(&absolute, root);
+        if is_fortran_path(path)
+            && let Ok(source) = std::fs::read(&absolute)
+            && let Some(extracted) = synaptic_extract::cached_extract_source(
+                Some(&root.join("synaptic-out/cache")),
+                &relative,
+                &source,
+            )
+        {
+            for node in extracted.nodes {
+                if node.extra.get("fortran_scope").and_then(|v| v.as_str()) == Some("module") {
+                    modules
+                        .entry(node.label.to_ascii_lowercase())
+                        .or_default()
+                        .insert(relative.clone());
+                }
+            }
+        }
+    }
+    let mut consumers: HashMap<String, HashSet<String>> = HashMap::new();
+    for edge in &graph.links {
+        let Some(source) = nodes.get(&edge.source) else {
+            continue;
+        };
+        if !is_fortran_path(Path::new(source.source_file.as_str())) {
+            continue;
+        }
+        if edge.extra.contains_key("fortran_use") {
+            if let Some(target) = nodes.get(&edge.target)
+                && let Some(files) = modules.get(&target.label.to_ascii_lowercase())
+            {
+                for file in files {
+                    consumers
+                        .entry(file.clone())
+                        .or_default()
+                        .insert(source.source_file.replace('\\', "/"));
+                }
+            }
+        } else if edge.relation == "calls"
+            && let Some(target) = nodes.get(&edge.target)
+        {
+            consumers
+                .entry(target.source_file.replace('\\', "/"))
+                .or_default()
+                .insert(source.source_file.replace('\\', "/"));
+        }
+    }
+    for node in &graph.nodes {
+        if let Some(ancestor) = node.extra.get("fortran_ancestor").and_then(|v| v.as_str())
+            && let Some(files) = modules.get(ancestor)
+        {
+            for file in files {
+                consumers
+                    .entry(file.clone())
+                    .or_default()
+                    .insert(node.source_file.replace('\\', "/"));
+            }
+        }
+    }
+    let mut queue: Vec<_> = affected.iter().cloned().collect();
+    while let Some(file) = queue.pop() {
+        for consumer in consumers.get(&file).into_iter().flatten() {
+            if affected.insert(consumer.clone()) {
+                queue.push(consumer.clone());
+            }
+        }
+    }
+    affected
+}
+
+fn is_fortran_path(path: &Path) -> bool {
+    path.extension().and_then(|e| e.to_str()).is_some_and(|e| {
+        matches!(
+            e.to_ascii_lowercase().as_str(),
+            "f" | "for" | "f90" | "f95" | "f03" | "f08"
+        )
+    })
+}
+
 /// Like [`rebuild`] but reuses an existing detect result instead of walking the
 /// tree again -- for the serve catch-up, which already scanned to discover the
 /// change set. `det.scan_root` is the canonicalized root, so the produced graph
@@ -408,9 +531,27 @@ pub fn rebuild_with_detect(
     existing: Option<&GraphData>,
     det: &DetectResult,
 ) -> Result<RebuildOutcome, IncrementalError> {
+    // Re-extract once after a parser/grammar upgrade, even with no source edits.
+    // Mixing old and new namespaces or AST shapes drops unchanged relationships.
+    let changes = if matches!(changes, ChangeSet::Incremental(_))
+        && existing.is_some_and(|graph| {
+            graph.nodes.iter().any(|node| {
+                is_ast(node)
+                    && !node.source_file.is_empty()
+                    && (node.id.0 == synaptic_core::make_id(&[&node.source_file])
+                        || (node.id == synaptic_core::file_node_id(&node.source_file)
+                            && node.extra.get("extractor_version").and_then(|v| v.as_str())
+                                != Some(synaptic_extract::cache::AST_CACHE_VERSION)))
+            })
+        }) {
+        &ChangeSet::Full
+    } else {
+        changes
+    };
     // The canonical root keeps `root.join(rel)` and rel ids/source_files
     // identical to a full `synaptic extract` (matters for changed-path matching).
     let root = det.scan_root.as_path();
+    let project = synaptic_extract::project::Project::load(root);
     let root_str = root.to_string_lossy().into_owned();
     let code_files: Vec<PathBuf> = det.of(FileType::Code).to_vec();
     // Markdown is a Document (not Code), but it gets structural heading
@@ -428,6 +569,16 @@ pub fn rebuild_with_detect(
         .chain(md_files.iter())
         .map(PathBuf::as_path)
         .collect();
+
+    // Build flags and included headers can affect any configured translation unit.
+    // ponytail: rebuild configured projects; compiler dependency files can narrow this later.
+    let changes = if project.has_build_configuration()
+        && matches!(changes, ChangeSet::Incremental(paths) if !paths.is_empty())
+    {
+        &ChangeSet::Full
+    } else {
+        changes
+    };
 
     // Decide what to extract and what to evict.
     let mut full_rebuild = false;
@@ -469,12 +620,21 @@ pub fn rebuild_with_detect(
         }
         ChangeSet::Incremental(paths) => {
             let mut wanted: Vec<PathBuf> = Vec::new();
-            for p in paths {
+            let affected = fortran_dependents(existing, root, paths);
+            let mut seen = HashSet::new();
+            for p in paths.iter().chain(
+                code_files
+                    .iter()
+                    .filter(|p| is_fortran_path(p) && affected.contains(&rel_key(p))),
+            ) {
                 let abs = if p.is_absolute() {
                     p.clone()
                 } else {
                     root.join(p)
                 };
+                if !seen.insert(abs.clone()) {
+                    continue;
+                }
                 // Evict the old nodes for this source regardless: a re-extracted
                 // file's fresh nodes come back via the AST id set.
                 evict_sources.insert(norm_source_file(&abs.to_string_lossy(), Some(&root_str)));
@@ -522,7 +682,7 @@ pub fn rebuild_with_detect(
                 let rel_str = rel.to_string_lossy();
                 match std::fs::read(file) {
                     Ok(bytes) => (
-                        cached_extract_source(Some(&cache_dir), rel_str.as_ref(), &bytes),
+                        project.extract(Some(&cache_dir), rel_str.as_ref(), &bytes),
                         false,
                     ),
                     Err(_) => (None, true),
@@ -631,7 +791,7 @@ pub fn rebuild_with_detect(
                         let rel_os = key.replace('/', std::path::MAIN_SEPARATOR_STR);
                         let abs = root.join(&rel_os);
                         let bytes = std::fs::read(&abs).ok()?;
-                        cached_extract_source(Some(&cache_dir), &rel_os, &bytes)
+                        project.extract(Some(&cache_dir), &rel_os, &bytes)
                     })
                     .collect()
             });
@@ -1307,6 +1467,160 @@ mod tests {
             l4.contains("a()") && l4.contains("c()"),
             "a.py survives: {l4:?}"
         );
+    }
+
+    #[test]
+    fn fortran_import_changes_retarget_unchanged_callers_and_revoke_private_exports() {
+        let dir = tempfile::tempdir().unwrap();
+        write(
+            dir.path(),
+            "a.f90",
+            "module a\ncontains\nsubroutine work()\nend subroutine\nend module\n",
+        );
+        write(
+            dir.path(),
+            "b.f90",
+            "module b\ncontains\nsubroutine work()\nend subroutine\nend module\n",
+        );
+        write(
+            dir.path(),
+            "facade.f90",
+            "module facade\nuse a, only: alias => work\nend module\n",
+        );
+        write(
+            dir.path(),
+            "app.f90",
+            "program app\nuse facade\ncall alias()\nend program\n",
+        );
+        let opts = RebuildOptions {
+            root: dir.path().to_path_buf(),
+            directed: true,
+            force: true,
+        };
+        let before = rebuild(&opts, &ChangeSet::Full, None)
+            .unwrap()
+            .kg
+            .to_graph_data();
+        write(
+            dir.path(),
+            "facade.f90",
+            "module facade\nuse b, only: alias => work\nend module\n",
+        );
+        let changed = rebuild(
+            &opts,
+            &ChangeSet::Incremental(vec!["facade.f90".into()]),
+            Some(&before),
+        )
+        .unwrap()
+        .kg
+        .to_graph_data();
+        assert_eq!(
+            fortran_dependents(Some(&before), dir.path(), &["facade.f90".into()]),
+            HashSet::from(["facade.f90".into(), "app.f90".into()])
+        );
+        let call = changed
+            .links
+            .iter()
+            .find(|e| e.relation == "calls")
+            .unwrap();
+        assert_eq!(
+            changed
+                .nodes
+                .iter()
+                .find(|n| n.id == call.target)
+                .unwrap()
+                .source_file
+                .as_str(),
+            "b.f90"
+        );
+        assert_eq!(
+            changed
+                .links
+                .iter()
+                .filter(|e| e.relation == "calls")
+                .count(),
+            1
+        );
+        let full = rebuild(&opts, &ChangeSet::Full, None)
+            .unwrap()
+            .kg
+            .to_graph_data();
+        assert_eq!(topology(&changed), topology(&full));
+        write(
+            dir.path(),
+            "b.f90",
+            "module b\nprivate\ncontains\nsubroutine work()\nend subroutine\nend module\n",
+        );
+        let private = rebuild(
+            &opts,
+            &ChangeSet::Incremental(vec!["b.f90".into()]),
+            Some(&changed),
+        )
+        .unwrap()
+        .kg
+        .to_graph_data();
+        assert!(!private.links.iter().any(|e| e.relation == "calls"));
+        let full = rebuild(&opts, &ChangeSet::Full, None)
+            .unwrap()
+            .kg
+            .to_graph_data();
+        assert_eq!(topology(&private), topology(&full));
+    }
+
+    #[test]
+    fn incremental_upgrade_rebuilds_legacy_file_ids_once() {
+        let dir = tempfile::tempdir().unwrap();
+        write(
+            dir.path(),
+            "a.py",
+            "from .b import b\ndef a():\n    return b()\n",
+        );
+        write(dir.path(), "b.py", "def b():\n    return 2\n");
+        let opts = RebuildOptions {
+            root: dir.path().to_path_buf(),
+            directed: true,
+            force: true,
+        };
+        let full = rebuild(&opts, &ChangeSet::Full, None)
+            .unwrap()
+            .kg
+            .to_graph_data();
+        let mut old = full.clone();
+        let current_id = synaptic_core::file_node_id("a.py");
+        let legacy_id = synaptic_core::NodeId(synaptic_core::make_id(&["a.py"]));
+        for node in &mut old.nodes {
+            if node.id == current_id {
+                node.id = legacy_id.clone();
+            }
+        }
+        for edge in &mut old.links {
+            if edge.source == current_id {
+                edge.source = legacy_id.clone();
+            }
+            if edge.target == current_id {
+                edge.target = legacy_id.clone();
+            }
+        }
+        let migrated = rebuild(&opts, &ChangeSet::Incremental(vec![]), Some(&old)).unwrap();
+        assert_eq!(migrated.reextracted, 2);
+        assert_eq!(topology(&full), topology(&migrated.kg.to_graph_data()));
+        let repeated = rebuild(
+            &opts,
+            &ChangeSet::Incremental(vec![]),
+            Some(&migrated.kg.to_graph_data()),
+        )
+        .unwrap();
+        assert_eq!(repeated.reextracted, 0);
+        let mut outdated = full.clone();
+        for node in &mut outdated.nodes {
+            if node.id == current_id {
+                node.extra
+                    .insert("extractor_version".into(), "previous-parser".into());
+            }
+        }
+        let upgraded = rebuild(&opts, &ChangeSet::Incremental(vec![]), Some(&outdated)).unwrap();
+        assert_eq!(upgraded.reextracted, 2);
+        assert_eq!(topology(&full), topology(&upgraded.kg.to_graph_data()));
     }
 
     #[cfg(windows)]

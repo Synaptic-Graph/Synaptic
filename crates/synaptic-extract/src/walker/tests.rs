@@ -216,7 +216,7 @@ fn import_edges(r: &crate::result::ExtractionResult) -> Vec<(String, String, Str
 #[test]
 fn plain_import_creates_imports_edge_and_stub() {
     let r = extract_python_source("m.py", b"import os\n");
-    let file = make_id(&["m.py"]);
+    let file = synaptic_core::file_node_id("m.py").0;
     let os = make_id(&["os"]);
     assert!(import_edges(&r).contains(&(file, "imports".into(), os.clone())));
     // External stub node exists for the module, labeled `os`.
@@ -230,7 +230,7 @@ fn plain_import_creates_imports_edge_and_stub() {
 #[test]
 fn aliased_import_strips_alias() {
     let r = extract_python_source("m.py", b"import numpy as np\n");
-    let file = make_id(&["m.py"]);
+    let file = synaptic_core::file_node_id("m.py").0;
     let numpy = make_id(&["numpy"]);
     assert!(import_edges(&r).contains(&(file, "imports".into(), numpy)));
     // The alias `np` is not the target.
@@ -249,7 +249,7 @@ fn multiple_modules_in_one_import() {
 fn relative_import_resolves_to_sibling_file_id() {
     // `from .helper import transform` in pkg/mod.py targets pkg/helper.py's id.
     let r = extract_python_source("pkg/mod.py", b"from .helper import transform\n");
-    let helper_file = make_id(&["pkg/helper.py"]);
+    let helper_file = synaptic_core::file_node_id("pkg/helper.py").0;
     assert!(
         import_edges(&r)
             .iter()
@@ -263,7 +263,7 @@ fn relative_import_resolves_to_sibling_file_id() {
 fn relative_import_climbs_parents() {
     // `from ..util import x` in a/b/mod.py resolves to a/util.py
     let r = extract_python_source("a/b/mod.py", b"from ..util import x\n");
-    let util = make_id(&["a/util.py"]);
+    let util = synaptic_core::file_node_id("a/util.py").0;
     assert!(
         import_edges(&r)
             .iter()

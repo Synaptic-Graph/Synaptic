@@ -67,7 +67,7 @@ static GROOVY_TYPE_RE: LazyLock<Regex> = LazyLock::new(|| {
         .expect("valid groovy type recovery regex")
 });
 static GROOVY_ROUTINE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?m)^[ \t]*(?:(?:public|private|protected|static|final|synchronized)[ \t]+)*(?:def|void|[A-Z][\w.<>,\[\] ]*)[ \t]+([a-zA-Z_]\w*)[ \t]*\(")
+    Regex::new(r#"(?m)^[ \t]*(?:(?:public|private|protected|static|final|synchronized)[ \t]+)*(?:def|void|boolean|byte|short|int|long|float|double|char|[A-Z][\w.<>,\[\] ]*)[ \t]+([a-zA-Z_]\w*|"(?:\\[^\r\n]|[^"\\\r\n])+"|'(?:\\[^\r\n]|[^'\\\r\n])+')[ \t]*\("#)
         .expect("valid groovy routine recovery regex")
 });
 static OBJC_TYPE_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -116,6 +116,111 @@ fn blank_comments(text: &str) -> String {
     String::from_utf8_lossy(&out).into_owned()
 }
 
+/// Groovy specs embed whole source files in triple-quoted strings. Those
+/// declarations belong to test data, not to the surrounding file's graph.
+pub(crate) fn blank_groovy_noncode(text: &str) -> String {
+    let mut bytes = text.as_bytes().to_vec();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes
+            .get(i..i + 2)
+            .is_some_and(|s| s == b"//" || s == b"/*")
+        {
+            let block = bytes[i + 1] == b'*';
+            let start = i;
+            i += 2;
+            while i < bytes.len() {
+                if block && bytes.get(i..i + 2) == Some(b"*/") {
+                    i += 2;
+                    break;
+                }
+                if !block && bytes[i] == b'\n' {
+                    break;
+                }
+                i += 1;
+            }
+            for byte in &mut bytes[start..i] {
+                if !matches!(*byte, b'\r' | b'\n') {
+                    *byte = b' ';
+                }
+            }
+            continue;
+        }
+        let dollar_slashy = bytes.get(i..i + 2) == Some(b"$/");
+        // A slash after an operand is division; after an expression opener it
+        // starts a string. Command-style argument ambiguity stays conservative.
+        let slashy = bytes[i] == b'/' && {
+            let prefix = text[..i].trim_end();
+            prefix.is_empty()
+                || prefix.ends_with(['=', '~', '(', '[', '{', ',', ':', '!'])
+                || prefix
+                    .split_whitespace()
+                    .last()
+                    .is_some_and(|word| matches!(word, "return" | "case" | "assert"))
+        };
+        if dollar_slashy || slashy {
+            let start = i;
+            i += if dollar_slashy { 2 } else { 1 };
+            while i < bytes.len() {
+                if dollar_slashy && bytes.get(i..i + 2) == Some(b"/$") {
+                    i += 2;
+                    break;
+                }
+                if !dollar_slashy && bytes[i] == b'/' {
+                    i += 1;
+                    break;
+                }
+                if (dollar_slashy
+                    && bytes[i] == b'$'
+                    && bytes.get(i + 1).is_some_and(|b| matches!(*b, b'$' | b'/')))
+                    || (!dollar_slashy && bytes.get(i..i + 2) == Some(b"\\/"))
+                {
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+            }
+            for byte in &mut bytes[start..i] {
+                if !matches!(*byte, b'\r' | b'\n') {
+                    *byte = b' ';
+                }
+            }
+            continue;
+        }
+        if !matches!(bytes[i], b'\'' | b'"') {
+            i += 1;
+            continue;
+        }
+        let quote = bytes[i];
+        let triple = bytes.get(i..i + 3) == Some(&[quote; 3]);
+        let width = if triple { 3 } else { 1 };
+        let start = i;
+        i += width;
+        while i < bytes.len() {
+            if bytes[i] == b'\\' {
+                i = (i + 2).min(bytes.len());
+                continue;
+            }
+            if bytes
+                .get(i..i + width)
+                .is_some_and(|s| s.iter().all(|b| *b == quote))
+            {
+                i += width;
+                break;
+            }
+            i += 1;
+        }
+        if triple {
+            for byte in &mut bytes[start..i] {
+                if !matches!(*byte, b'\r' | b'\n') {
+                    *byte = b' ';
+                }
+            }
+        }
+    }
+    String::from_utf8(bytes).expect("blanking preserves UTF-8")
+}
+
 /// Declaration-shaped lines in `source` for the given extension, in source order.
 /// Empty for extensions with no recovery patterns.
 pub(crate) fn scan(ext: &str, source: &[u8]) -> Vec<Decl> {
@@ -124,6 +229,8 @@ pub(crate) fn scan(ext: &str, source: &[u8]) -> Vec<Decl> {
     // corrupt nothing but buys nothing either, so it is skipped.
     let text = if ext == "ps1" || ext == "psm1" {
         raw.into_owned()
+    } else if matches!(ext, "groovy" | "gradle") {
+        blank_groovy_noncode(&raw)
     } else {
         blank_comments(&raw)
     };
@@ -143,7 +250,11 @@ pub(crate) fn scan(ext: &str, source: &[u8]) -> Vec<Decl> {
     for (re, is_routine) in patterns {
         for cap in re.captures_iter(&text) {
             let m = cap.get(1).expect("capture group 1 exists");
-            let name = m.as_str().to_string();
+            let name = m
+                .as_str()
+                .strip_prefix(['\'', '"'])
+                .map_or(m.as_str(), |s| &s[..s.len() - 1])
+                .to_string();
             // Control keywords can shadow the routine patterns (`if (`, `while (`).
             if matches!(
                 name.as_str(),
@@ -311,6 +422,60 @@ mod tests {
         assert!(
             !got.iter().any(|(n, _)| n == "if" || n == "while"),
             "{got:?}"
+        );
+    }
+
+    #[test]
+    fn groovy_embedded_source_is_not_recovered() {
+        let src = "def url = 'http://example.test'\ndef text = '''\nclass Fake {\n  def \"not a real feature\"() {}\n}\n'''\n\ndef \"real feature\"() {}\n";
+        assert_eq!(names("groovy", src), vec![("real feature".into(), 8)]);
+        assert_eq!(blank_groovy_noncode(src).len(), src.len());
+    }
+
+    #[test]
+    fn groovy_slashy_strings_do_not_recover_embedded_declarations() {
+        let src = r#"def text = /é
+class Fake {}
+def fake() {}
+escaped \/ slash
+/
+def other = $/
+class Other {}
+def hidden() {}
+$$ escaped dollar $/ escaped slash
+/$
+def ratio = total / count
+def "escaped \"name\""() {}
+"#;
+        assert_eq!(
+            names("groovy", src),
+            vec![(r#"escaped \"name\""#.into(), 12)]
+        );
+        assert_eq!(blank_groovy_noncode(src).len(), src.len());
+    }
+
+    #[cfg(feature = "lang-groovy")]
+    #[test]
+    fn groovy_quoted_features_and_primitive_methods_are_recovered() {
+        let src = "class Spec {\n  def \"empty input returns nothing\"() {\n    expect: true\n  }\n  def 'another feature'() {}\n  boolean ready() {}\n  // def \"commented feature\"() {}\n}\n";
+        let got = names("groovy", src);
+        assert!(
+            got.contains(&("empty input returns nothing".into(), 2)),
+            "{got:?}"
+        );
+        assert!(got.contains(&("another feature".into(), 5)));
+        assert!(got.contains(&("ready".into(), 6)));
+        assert!(!got.iter().any(|(n, _)| n == "commented feature"));
+        let r = crate::extract_source("Spec.groovy", src.as_bytes()).unwrap();
+        let feature = r
+            .nodes
+            .iter()
+            .find(|n| n.label.trim_start_matches('.') == "empty input returns nothing()")
+            .unwrap();
+        assert_eq!(feature.source_location.as_deref(), Some("L2"));
+        assert_ne!(
+            feature.extra.get("recovered"),
+            Some(&serde_json::Value::Bool(true))
         );
     }
 

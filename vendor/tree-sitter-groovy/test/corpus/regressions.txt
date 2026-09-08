@@ -1,0 +1,841 @@
+; Per-issue regression corpus per SPECIFICATION.md §8.2. Every
+; closed bug from the source-grammar projects gets one pinned
+; S-expression here so a future grammar edit that breaks the
+; closure surfaces as a single localised test failure.
+;
+; Cross-reference notes:
+; - The murtaza64 #5 (juxt_function_call) anchor is pending: it
+;   requires command-chain support which is not yet implemented.
+
+==================
+murtaza64 #16 empty groovydoc and block comment
+==================
+
+/**/
+def a = 1
+/***/
+def b = 2
+/* */
+def c = 3
+
+---
+
+(source_file
+  (groovydoc_comment)
+  (local_variable_declaration
+    (variable_declarator name: (identifier) value: (number_literal)))
+  (groovydoc_comment)
+  (local_variable_declaration
+    (variable_declarator name: (identifier) value: (number_literal)))
+  (block_comment)
+  (local_variable_declaration
+    (variable_declarator name: (identifier) value: (number_literal))))
+
+==================
+murtaza64 #22 multi-assignment
+==================
+
+def (a, b) = [1, 2]
+
+---
+
+(source_file
+  (multi_assignment_declaration
+    (variable_declarator name: (identifier))
+    (variable_declarator name: (identifier))
+    value: (list_literal
+      (number_literal)
+      (number_literal))))
+
+==================
+murtaza64 #36 enum and arrow switch
+==================
+
+enum Color { R, G, B }
+
+def toS(c) {
+    switch (c) {
+        case Color.R -> 'r'
+        case Color.G -> 'g'
+        case Color.B -> 'b'
+    }
+}
+
+---
+
+(source_file
+  (enum_declaration
+    name: (identifier)
+    body: (enum_body
+      (enum_constant name: (identifier))
+      (enum_constant name: (identifier))
+      (enum_constant name: (identifier))))
+  (method_declaration
+    name: (identifier)
+    parameters: (formal_parameters
+      (formal_parameter name: (identifier)))
+    body: (block
+      (expression_statement
+        (switch_expression
+          value: (identifier)
+          body: (switch_block
+            (switch_arrow_case
+              value: (field_access
+                object: (identifier)
+                field: (identifier))
+              body: (expression_statement (string_literal)))
+            (switch_arrow_case
+              value: (field_access
+                object: (identifier)
+                field: (identifier))
+              body: (expression_statement (string_literal)))
+            (switch_arrow_case
+              value: (field_access
+                object: (identifier)
+                field: (identifier))
+              body: (expression_statement (string_literal)))))))))
+
+==================
+murtaza64 #37 pipeline followed by definition
+==================
+
+pipeline {}
+def foo = 5
+
+---
+
+(source_file
+  (pipeline_statement
+    body: (closure))
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (number_literal))))
+
+==================
+murtaza64 #39 multi-catch
+==================
+
+try {
+    risky()
+} catch (IOException | RuntimeException e) {
+    handle(e)
+}
+
+---
+
+(source_file
+  (try_statement
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))
+    (catch_clause
+      parameter: (catch_formal_parameter
+        type: (multi_type
+          (type_identifier)
+          (type_identifier))
+        name: (identifier))
+      body: (block
+        (expression_statement
+          (method_invocation
+            function: (identifier)
+            arguments: (argument_list (identifier))))))))
+
+==================
+dekobon 246 elvis as elvis_expression not ternary
+==================
+
+def pick(a, b, c) {
+    return a ?: b ?: c
+}
+
+---
+
+(source_file
+  (method_declaration
+    name: (identifier)
+    parameters: (formal_parameters
+      (formal_parameter name: (identifier))
+      (formal_parameter name: (identifier))
+      (formal_parameter name: (identifier)))
+    body: (block
+      (return_statement
+        (elvis_expression
+          value: (identifier)
+          default: (elvis_expression
+            value: (identifier)
+            default: (identifier)))))))
+
+==================
+dekobon 247 trait declaration
+==================
+
+trait Greeter {
+    def greet() {
+        "hello"
+    }
+}
+
+---
+
+(source_file
+  (trait_declaration
+    name: (identifier)
+    body: (class_body
+      (method_declaration
+        name: (identifier)
+        parameters: (formal_parameters)
+        body: (block
+          (expression_statement (string_literal (string_fragment))))))))
+
+==================
+dekobon 247 exclusive range
+==================
+
+for (i in 0..<n) { f(i) }
+
+---
+
+(source_file
+  (for_in_statement
+    variable: (identifier)
+    value: (range_expression
+      start: (number_literal)
+      end: (identifier))
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list (identifier)))))))
+
+==================
+dekobon 20 top-level typed method with semicolon body
+==================
+
+void f() { x(); }
+
+---
+
+(source_file
+  (method_declaration
+    return_type: (type_identifier)
+    name: (identifier)
+    parameters: (formal_parameters)
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))))
+
+==================
+dekobon 20 typed method with multiple semicolon statements
+==================
+
+void f() { x(); y() }
+
+---
+
+(source_file
+  (method_declaration
+    return_type: (type_identifier)
+    name: (identifier)
+    parameters: (formal_parameters)
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list)))
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))))
+
+==================
+dekobon 20 typed method with C-style for loop
+==================
+
+void f() { for (int i = 0; i < 3; i++) { a(); } }
+
+---
+
+(source_file
+  (method_declaration
+    return_type: (type_identifier)
+    name: (identifier)
+    parameters: (formal_parameters)
+    body: (block
+      (for_statement
+        init: (local_variable_declaration
+          type: (type_identifier)
+          name: (identifier)
+          value: (number_literal))
+        condition: (binary_expression
+          left: (identifier)
+          right: (number_literal))
+        update: (update_expression
+          operand: (identifier))
+        body: (block
+          (expression_statement
+            (method_invocation
+              function: (identifier)
+              arguments: (argument_list))))))))
+
+==================
+dekobon 20 semicolon terminates top-level statements
+==================
+
+def x = 1; def y = 2
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (number_literal)))
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (number_literal))))
+
+==================
+dekobon 20 semicolon in switch case body
+==================
+
+switch (x) {
+  case 1: y(); break
+  default: z()
+}
+
+---
+
+(source_file
+  (expression_statement
+    (switch_expression
+      value: (identifier)
+      body: (switch_block
+        (switch_case
+          value: (number_literal)
+          (expression_statement
+            (method_invocation
+              function: (identifier)
+              arguments: (argument_list)))
+          (break_statement))
+        (switch_default
+          (expression_statement
+            (method_invocation
+              function: (identifier)
+              arguments: (argument_list))))))))
+
+==================
+dekobon 20 else attaches after semicolon-terminated consequence
+==================
+
+if (x) a(); else b()
+
+---
+
+(source_file
+  (if_statement
+    condition: (identifier)
+    consequence: (expression_statement
+      (method_invocation
+        function: (identifier)
+        arguments: (argument_list)))
+    alternative: (expression_statement
+      (method_invocation
+        function: (identifier)
+        arguments: (argument_list)))))
+
+==================
+dekobon 20 semicolon after braceless if without else
+==================
+
+if (x) a(); b()
+
+---
+
+(source_file
+  (if_statement
+    condition: (identifier)
+    consequence: (expression_statement
+      (method_invocation
+        function: (identifier)
+        arguments: (argument_list))))
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list))))
+
+==================
+dekobon 20 interface abstract method with semicolon
+==================
+
+interface Foo { void bar(); }
+
+---
+
+(source_file
+  (interface_declaration
+    name: (identifier)
+    body: (class_body
+      (method_declaration
+        return_type: (type_identifier)
+        name: (identifier)
+        parameters: (formal_parameters)))))
+
+==================
+dekobon 20 class field with semicolon
+==================
+
+class Foo { int x = 1; }
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (field_declaration
+        type: (type_identifier)
+        (variable_declarator
+          name: (identifier)
+          value: (number_literal))))))
+
+==================
+dekobon 20 switch arrow case with semicolon
+==================
+
+switch (x) { case 1 -> foo(); }
+
+---
+
+(source_file
+  (expression_statement
+    (switch_expression
+      value: (identifier)
+      body: (switch_block
+        (switch_arrow_case
+          value: (number_literal)
+          body: (expression_statement
+            (method_invocation
+              function: (identifier)
+              arguments: (argument_list))))))))
+
+==================
+dekobon 20 do-while with semicolon-terminated body
+==================
+
+do a(); while (c)
+
+---
+
+(source_file
+  (do_while_statement
+    body: (expression_statement
+      (method_invocation
+        function: (identifier)
+        arguments: (argument_list)))
+    condition: (identifier)))
+
+================================================================================
+Qualified commands, named arguments and statement boundaries
+================================================================================
+
+class Dsl {
+  private final Number value
+  private final Number epsilon
+  Dsl(Number value, Number epsilon) { this.value = value; this.epsilon = epsilon }
+  def run(client) {
+    def data = client.decode 'text', String
+    client.configure mode: 'test', count: 2
+    def action = { target = 1 }
+    [1, *[2, 3]].each { value -> client.send value, data }
+    def values = new Object[2]
+    def (String name, int count) = ['a', 2]
+    assert count == 2, 'count'
+  }
+}
+
+---
+
+(source_file
+  (class_declaration
+    (identifier)
+    (class_body
+      (field_declaration
+        (type_identifier)
+        (variable_declarator
+          (identifier)))
+      (field_declaration
+        (type_identifier)
+        (variable_declarator
+          (identifier)))
+      (constructor_declaration
+        (identifier)
+        (formal_parameters
+          (formal_parameter
+            (type_identifier)
+            (identifier))
+          (formal_parameter
+            (type_identifier)
+            (identifier)))
+        (block
+          (expression_statement
+            (assignment_expression
+              (field_access
+                (identifier)
+                (identifier))
+              (identifier)))
+          (expression_statement
+            (assignment_expression
+              (field_access
+                (identifier)
+                (identifier))
+              (identifier)))))
+      (method_declaration
+        (identifier)
+        (formal_parameters
+          (formal_parameter
+            (identifier)))
+        (block
+          (local_variable_declaration
+            (variable_declarator
+              (identifier)
+              (command_chain
+                (field_access
+                  (identifier)
+                  (identifier))
+                (string_literal)
+                (identifier))))
+          (command_chain
+            (field_access
+              (identifier)
+              (identifier))
+            (map_entry
+              (identifier)
+              (string_literal))
+            (map_entry
+              (identifier)
+              (number_literal)))
+          (local_variable_declaration
+            (variable_declarator
+              (identifier)
+              (closure
+                (expression_statement
+                  (assignment_expression
+                    (identifier)
+                    (number_literal))))))
+          (expression_statement
+            (method_invocation
+              (field_access
+                (list_literal
+                  (number_literal)
+                  (spread_arguments
+                    (list_literal
+                      (number_literal)
+                      (number_literal))))
+                (identifier))
+              (closure
+                (closure_parameters
+                  (closure_parameter
+                    (identifier)))
+                (command_chain
+                  (field_access
+                    (identifier)
+                    (identifier))
+                  (identifier)
+                  (identifier)))))
+          (local_variable_declaration
+            (variable_declarator
+              (identifier)
+              (array_creation_expression
+                (type_identifier)
+                (number_literal))))
+          (multi_assignment_declaration
+            (variable_declarator
+              (type_identifier)
+              (identifier))
+            (variable_declarator
+              (type_identifier)
+              (identifier))
+            (list_literal
+              (string_literal)
+              (number_literal)))
+          (assert_statement
+            (binary_expression
+              (identifier)
+              (number_literal))
+            (string_literal)))))))
+
+================================================================================
+Closure defaults, annotation defaults, typed loops and casts
+================================================================================
+
+@interface Flag { String value() default 'ok' }
+@Flag
+final class Work {
+  def <T> T identity(T value) { value }
+  def run() {
+    def callback = { String name = 'default', int count = 2 -> name * count }
+    for (String name : ['a']) { println name }
+    synchronized(this) { println (String) 'ok' }
+    try { run() } catch (Exception) { println 'failed' }
+  }
+}
+
+---
+
+(source_file
+  (annotation_type_declaration
+    (identifier)
+    (class_body
+      (method_declaration
+        (type_identifier)
+        (identifier)
+        (formal_parameters)
+        (string_literal))))
+  (class_declaration
+    (annotation
+      (qualified_name
+        (identifier)))
+    (identifier)
+    (class_body
+      (method_declaration
+        (method_type_parameters
+          (type_parameter
+            (type_identifier)))
+        (type_identifier)
+        (identifier)
+        (formal_parameters
+          (formal_parameter
+            (type_identifier)
+            (identifier)))
+        (block
+          (expression_statement
+            (identifier))))
+      (method_declaration
+        (identifier)
+        (formal_parameters)
+        (block
+          (local_variable_declaration
+            (variable_declarator
+              (identifier)
+              (closure
+                (closure_parameters
+                  (closure_parameter
+                    (type_identifier)
+                    (identifier)
+                    (string_literal))
+                  (closure_parameter
+                    (type_identifier)
+                    (identifier)
+                    (number_literal)))
+                (expression_statement
+                  (binary_expression
+                    (identifier)
+                    (identifier))))))
+          (for_in_statement
+            (type_identifier)
+            (identifier)
+            (list_literal
+              (string_literal))
+            (block
+              (expression_statement
+                (identifier))
+              (expression_statement
+                (identifier))))
+          (synchronized_statement
+            (identifier)
+            (block
+              (expression_statement
+                (method_invocation
+                  (identifier)
+                  (argument_list
+                    (identifier))))
+              (expression_statement
+                (string_literal))))
+          (try_statement
+            (block
+              (expression_statement
+                (method_invocation
+                  (identifier)
+                  (argument_list))))
+            (catch_clause
+              (catch_formal_parameter
+                (type_identifier))
+              (block
+                (command_chain
+                  (identifier)
+                  (string_literal))))))))))
+
+==================
+Annotated implicit-return methods, modifier-only fields, diamond types and lambdas
+==================
+class Features {
+    final static CMP = { a, b -> a <=> b }
+    @Unroll 'implicit return feature'() {
+        def values = new ArrayList<>()
+        values.map(x -> helper(x))
+        values.map((String x) -> { helper(x) })
+    }
+    public run() { helper(1) }
+    def helper(x) { x }
+}
+
+---
+
+(source_file
+  (class_declaration
+    (identifier)
+    (class_body
+      (field_declaration
+        (variable_declarator
+          (identifier)
+          (closure
+            (closure_parameters
+              (closure_parameter
+                (identifier))
+              (closure_parameter
+                (identifier)))
+            (expression_statement
+              (spaceship_expression
+                (identifier)
+                (identifier))))))
+      (method_declaration
+        (annotation
+          (qualified_name
+            (identifier)))
+        (quoted_identifier)
+        (formal_parameters)
+        (block
+          (local_variable_declaration
+            (variable_declarator
+              (identifier)
+              (object_creation_expression
+                (generic_type
+                  (type_identifier)
+                  (type_arguments))
+                (argument_list))))
+          (expression_statement
+            (method_invocation
+              (field_access
+                (identifier)
+                (identifier))
+              (argument_list
+                (lambda_expression
+                  (identifier)
+                  (method_invocation
+                    (identifier)
+                    (argument_list
+                      (identifier)))))))
+          (expression_statement
+            (method_invocation
+              (field_access
+                (identifier)
+                (identifier))
+              (argument_list
+                (lambda_expression
+                  (formal_parameters
+                    (formal_parameter
+                      (type_identifier)
+                      (identifier)))
+                  (block
+                    (expression_statement
+                      (method_invocation
+                        (identifier)
+                        (argument_list
+                          (identifier)))))))))))
+      (constructor_declaration
+        (identifier)
+        (formal_parameters)
+        (block
+          (expression_statement
+            (method_invocation
+              (identifier)
+              (argument_list
+                (number_literal))))))
+      (method_declaration
+        (identifier)
+        (formal_parameters
+          (formal_parameter
+            (identifier)))
+        (block
+          (expression_statement
+            (identifier)))))))
+
+==================
+Annotated parameters in nested classes
+==================
+class Outer {
+  static class Inner {
+    String hello(@Deprecated final String name) { helper(name) }
+  }
+}
+---
+
+(source_file
+  (class_declaration
+    (identifier)
+    (class_body
+      (class_declaration
+        (identifier)
+        (class_body
+          (method_declaration
+            (type_identifier)
+            (identifier)
+            (formal_parameters
+              (formal_parameter
+                (annotation
+                  (qualified_name
+                    (identifier)))
+                (type_identifier)
+                (identifier)))
+            (block
+              (expression_statement
+                (method_invocation
+                  (identifier)
+                  (argument_list
+                    (identifier)))))))))))
+
+==================
+Trailing closure calls retain receiver and body
+==================
+def run() {
+  client.each { helper(it) }
+  client.each(1) { helper(it) }
+}
+---
+
+(source_file
+  (method_declaration
+    (identifier)
+    (formal_parameters)
+    (block
+      (expression_statement
+        (method_invocation
+          (field_access
+            (identifier)
+            (identifier))
+          (closure
+            (expression_statement
+              (method_invocation
+                (identifier)
+                (argument_list
+                  (identifier)))))))
+      (expression_statement
+        (method_invocation
+          (method_invocation
+            (field_access
+              (identifier)
+              (identifier))
+            (argument_list
+              (number_literal)))
+          (closure
+            (expression_statement
+              (method_invocation
+                (identifier)
+                (argument_list
+                  (identifier))))))))))

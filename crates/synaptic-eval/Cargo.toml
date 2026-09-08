@@ -18,6 +18,8 @@ synaptic-incremental = { workspace = true }
 synaptic-predict = { workspace = true }
 synaptic-query = { workspace = true }
 toml = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-javascript = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

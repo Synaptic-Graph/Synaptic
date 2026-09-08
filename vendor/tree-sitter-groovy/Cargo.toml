@@ -1,0 +1,45 @@
+[package]
+name = "dekobon-tree-sitter-groovy"
+description = "Apache Groovy grammar for tree-sitter (dekobon fork)"
+version = "0.3.0"
+keywords = ["incremental", "parsing", "groovy", "jenkins", "gradle"]
+categories = ["parsing", "text-editors"]
+repository = "https://github.com/dekobon/tree-sitter-groovy"
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0 OR MIT"
+
+build = "bindings/rust/build.rs"
+include = [
+  "/LICENSE-APACHE",
+  "/LICENSE-MIT",
+  "bindings/rust/**",
+  "/grammar.js",
+  "queries/*",
+  "src/*",
+]
+
+[lib]
+path = "bindings/rust/lib.rs"
+
+[[test]]
+name = "parse_stress"
+path = "bindings/rust/tests/parse_stress.rs"
+
+[dependencies]
+tree-sitter-language = "0.1.7"
+
+[build-dependencies]
+cc = "1.2"
+
+[dev-dependencies]
+tree-sitter = "0.26"
+
+# Lint posture. No crate-wide allows — additional allows go at file or
+# function level so the carve-out stays visible at the affected site
+# rather than weakening the whole crate.
+[lints.rust]
+missing_docs = "warn"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }

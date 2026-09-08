@@ -40,7 +40,12 @@ const CPP_MACRO_BUILTINS: &[&str] = &[
 pub fn cpp_config() -> LanguageConfig {
     LanguageConfig {
         language: || tree_sitter_cpp::LANGUAGE.into(),
-        class_types: &["class_specifier", "struct_specifier"],
+        class_types: &[
+            "class_specifier",
+            "struct_specifier",
+            "union_specifier",
+            "enum_specifier",
+        ],
         function_types: &["function_definition"],
         call_types: &["call_expression"],
         name_field: "name",
@@ -88,6 +93,33 @@ mod tests {
     use super::extract_cpp_source;
     use crate::result::ExtractionResult;
     use synaptic_core::Confidence;
+
+    #[test]
+    fn scoped_aliases_unions_and_enums_are_located_declarations() {
+        let r = extract_cpp_source("types.hpp", b"using Real = double;\nstruct A { using Value = Real; };\nstruct B { typedef int Value; };\nunion Data { int i; double d; };\nenum class Mode { On, Off };\n");
+        assert!(!r.parse_error);
+        for label in ["Real", "Data", "Mode"] {
+            assert!(
+                r.nodes
+                    .iter()
+                    .any(|n| n.label == label && !n.source_file.is_empty())
+            );
+        }
+        let values: Vec<_> = r
+            .nodes
+            .iter()
+            .filter(|n| n.label == "Value" && !n.source_file.is_empty())
+            .collect();
+        assert_eq!(values.len(), 2);
+        assert_ne!(values[0].id, values[1].id);
+        for value in values {
+            assert!(
+                r.edges
+                    .iter()
+                    .any(|e| e.target == value.id && e.relation == "contains")
+            );
+        }
+    }
 
     const SAMPLE: &[u8] = br#"
 #include <vector>

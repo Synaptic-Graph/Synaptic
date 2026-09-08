@@ -182,7 +182,12 @@ pub fn parse_tags(stdout: &str) -> (Vec<Tag>, usize) {
         let path = normalize_path(path);
         let language = crate::repo_corpus::language_of(&path).map(|lang| lang.name);
         let language_specific = kind == "member" && language == Some("python")
-            || kind == "object" && matches!(language, Some("kotlin" | "scala"));
+            || kind == "object" && matches!(language, Some("kotlin" | "scala"))
+            || language == Some("fortran")
+                && matches!(
+                    kind.as_str(),
+                    "subroutine" | "program" | "module" | "submodule"
+                );
         let import_alias = kind == "alias"
             && v.get("pattern")
                 .and_then(|x| x.as_str())
@@ -235,7 +240,17 @@ pub fn diff(tags: &[Tag], gd: &GraphData) -> Vec<OracleLanguage> {
         let Some(lang) = language_of(&t.path) else {
             continue;
         };
-        let key = (t.path.clone(), t.name.clone());
+        let name = if lang.case_folds {
+            t.name.to_ascii_lowercase()
+        } else {
+            t.name.clone()
+        };
+        let name = if name.starts_with("operator") {
+            name.replace(char::is_whitespace, "")
+        } else {
+            name
+        };
+        let key = (t.path.clone(), name);
         sample_of.insert(key.clone(), format!("{}:{} {}", t.path, t.line, t.name));
         ctags_by_lang.entry(lang.name).or_default().insert(key);
     }
@@ -254,10 +269,16 @@ pub fn diff(tags: &[Tag], gd: &GraphData) -> Vec<OracleLanguage> {
         let Some(name) = bare_name(&n.label) else {
             continue;
         };
-        syn_by_lang
-            .entry(lang.name)
-            .or_default()
-            .insert((normalize_path(&n.source_file), name.to_string()));
+        syn_by_lang.entry(lang.name).or_default().insert((
+            normalize_path(&n.source_file),
+            if lang.case_folds {
+                name.to_ascii_lowercase()
+            } else if name.starts_with("operator") {
+                name.replace(char::is_whitespace, "")
+            } else {
+                name.to_string()
+            },
+        ));
     }
 
     // Only languages the oracle actually understood. A language it emitted no
@@ -319,12 +340,24 @@ pub fn compare(dir: &Path, gd: &GraphData) -> OracleOutcome {
         Ok(child) => child,
         Err(e) => return OracleOutcome::unavailable(format!("running ctags: {e}")),
     };
-    if let Some(mut stdin) = child.stdin.take()
-        && let Err(e) = files.iter().try_for_each(|path| writeln!(stdin, "{path}"))
-    {
+    // Feed filenames while draining stdout/stderr. On a large corpus both pipes
+    // can fill, deadlocking a synchronous stdin write before wait_with_output.
+    let (sent, output) = std::thread::scope(|scope| {
+        let input = child.stdin.take();
+        let writer = scope.spawn(move || {
+            if let Some(mut stdin) = input {
+                files.iter().try_for_each(|path| writeln!(stdin, "{path}"))
+            } else {
+                Ok(())
+            }
+        });
+        let output = child.wait_with_output();
+        (writer.join().expect("oracle input writer panicked"), output)
+    });
+    if let Err(e) = sent {
         return OracleOutcome::unavailable(format!("sending file list to ctags: {e}"));
     }
-    let out = match child.wait_with_output() {
+    let out = match output {
         Ok(out) => out,
         Err(e) => return OracleOutcome::unavailable(format!("waiting for ctags: {e}")),
     };
@@ -409,6 +442,27 @@ mod tests {
         assert_eq!(
             tags.iter().map(|tag| tag.name.as_str()).collect::<Vec<_>>(),
             ["Shape", "run", "Build"]
+        );
+    }
+
+    #[test]
+    fn fortran_subroutines_are_measured_without_case_false_negatives() {
+        let (tags, malformed) = parse_tags(
+            r#"{"_type":"tag","name":"SOLVE","path":"a.F","kind":"subroutine","line":2}
+{"_type":"tag","name":"Missing","path":"a.F","kind":"subroutine","line":8}
+{"_type":"tag","name":"M","path":"b.f90","kind":"module","line":1}
+{"_type":"tag","name":"x","path":"a.F","kind":"variable","line":3}"#,
+        );
+        assert_eq!(malformed, 0);
+        assert_eq!(tags.len(), 3);
+        let gd = GraphData {
+            nodes: vec![decl("solve()", "a.F"), decl("m", "b.f90")],
+            ..Default::default()
+        };
+        let d = diff(&tags, &gd);
+        assert_eq!(
+            (d[0].agreement, d[0].ctags_only, d[0].synaptic_only),
+            (2, 1, 0)
         );
     }
 

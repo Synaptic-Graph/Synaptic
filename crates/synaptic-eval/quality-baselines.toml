@@ -62,7 +62,7 @@ ctags_missed_rate_max = 1.0
 
 [[repo]]
 name = "Slim"
-anchor_exactness_min = 0.994
+anchor_exactness_min = 1.0
 parse_error_rate_max = 0.0
 zero_decl_file_rate_max = 0.0149
 ctags_missed_rate_max = 0.8346
@@ -131,6 +131,13 @@ zero_decl_file_rate_max = 0.0704
 ctags_missed_rate_max = 1.0
 
 [[repo]]
+name = "cminpack"
+anchor_exactness_min = 1.0
+parse_error_rate_max = 0.3054
+zero_decl_file_rate_max = 0.0659
+ctags_missed_rate_max = 0.0
+
+[[repo]]
 name = "cobra"
 anchor_exactness_min = 1.0
 parse_error_rate_max = 0.0
@@ -180,6 +187,12 @@ zero_decl_file_rate_max = 0.6867
 ctags_missed_rate_max = 0.9793
 
 [[repo]]
+name = "fftpack"
+anchor_exactness_min = 1.0
+parse_error_rate_max = 0.0
+zero_decl_file_rate_max = 0.0477
+
+[[repo]]
 name = "fluentui-blazor"
 anchor_exactness_min = 0.9998
 parse_error_rate_max = 0.0118
@@ -188,10 +201,16 @@ ctags_missed_rate_max = 1.0
 
 [[repo]]
 name = "fmt"
-anchor_exactness_min = 0.9993
+anchor_exactness_min = 1.0
 parse_error_rate_max = 0.27
 zero_decl_file_rate_max = 0.21
 ctags_missed_rate_max = 1.0
+
+[[repo]]
+name = "fpm"
+anchor_exactness_min = 1.0
+parse_error_rate_max = 0.029
+zero_decl_file_rate_max = 0.0689
 
 [[repo]]
 name = "gin"
@@ -208,6 +227,12 @@ zero_decl_file_rate_max = 0.0618
 ctags_missed_rate_max = 1.0
 
 [[repo]]
+name = "groovy-wslite"
+anchor_exactness_min = 1.0
+parse_error_rate_max = 0.0
+zero_decl_file_rate_max = 0.0385
+
+[[repo]]
 name = "gson"
 anchor_exactness_min = 1.0
 parse_error_rate_max = 0.0
@@ -216,7 +241,7 @@ ctags_missed_rate_max = 1.0
 
 [[repo]]
 name = "guzzle"
-anchor_exactness_min = 0.9949
+anchor_exactness_min = 1.0
 parse_error_rate_max = 0.0
 zero_decl_file_rate_max = 0.0128
 ctags_missed_rate_max = 0.8734
@@ -227,6 +252,12 @@ anchor_exactness_min = 1.0
 parse_error_rate_max = 0.0367
 zero_decl_file_rate_max = 0.6156
 ctags_missed_rate_max = 1.0
+
+[[repo]]
+name = "http-builder-ng"
+anchor_exactness_min = 1.0
+parse_error_rate_max = 0.0
+zero_decl_file_rate_max = 0.0814
 
 [[repo]]
 name = "ibex"
@@ -265,16 +296,16 @@ ctags_missed_rate_max = 1.0
 
 [[repo]]
 name = "lapack"
-anchor_exactness_min = 0.9988
-parse_error_rate_max = 0.9873
-zero_decl_file_rate_max = 0.7972
-ctags_missed_rate_max = 1.0
+anchor_exactness_min = 1.0
+parse_error_rate_max = 0.003
+zero_decl_file_rate_max = 0.0027
+ctags_missed_rate_max = 0.0004
 
 [[repo]]
 name = "libuv"
-anchor_exactness_min = 0.9902
+anchor_exactness_min = 1.0
 parse_error_rate_max = 0.1559
-zero_decl_file_rate_max = 0.1429
+zero_decl_file_rate_max = 0.1351
 ctags_missed_rate_max = 1.0
 
 [[repo]]
@@ -342,9 +373,9 @@ ctags_missed_rate_max = 1.0
 
 [[repo]]
 name = "schemastore"
-anchor_exactness_min = 0.9996
+anchor_exactness_min = 1.0
 parse_error_rate_max = 0.0
-zero_decl_file_rate_max = 0.5239
+zero_decl_file_rate_max = 0.524
 ctags_missed_rate_max = 0.9966
 
 [[repo]]
@@ -356,9 +387,10 @@ ctags_missed_rate_max = 1.0
 
 [[repo]]
 name = "spock"
-anchor_exactness_min = 0.9983
-parse_error_rate_max = 0.407
-zero_decl_file_rate_max = 0.0902
+anchor_exactness_min = 1.0
+parse_error_rate_max = 0.0
+# core.gradle now correctly has no declarations: filter(...) is a call.
+zero_decl_file_rate_max = 0.0350
 ctags_missed_rate_max = 1.0
 
 [[repo]]

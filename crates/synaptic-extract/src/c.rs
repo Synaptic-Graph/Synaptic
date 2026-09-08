@@ -20,7 +20,7 @@ use crate::walker::{extract_with_config, normalize_c_family_source};
 pub fn c_config() -> LanguageConfig {
     LanguageConfig {
         language: || tree_sitter_c::LANGUAGE.into(),
-        class_types: &[],
+        class_types: &["struct_specifier", "union_specifier", "enum_specifier"],
         function_types: &["function_definition"],
         call_types: &["call_expression"],
         name_field: "name",
@@ -94,6 +94,99 @@ int run(struct Config *cfg) {
             .filter(|e| e.relation == relation)
             .map(|e| (lbl(&e.source), lbl(&e.target)))
             .collect()
+    }
+
+    #[test]
+    fn gnu_type_predicates_keep_evaluated_call_branches() {
+        let result = extract_c_source("gnu.c", b"int work(double x) { return __builtin_choose_expr(__builtin_types_compatible_p(__typeof__(x), long double), wide(x), narrow(x)); }\n");
+        assert!(!result.parse_error);
+        for name in ["wide", "narrow"] {
+            assert!(result.raw_calls.iter().any(|c| c.callee == name));
+        }
+        assert!(
+            !result
+                .raw_calls
+                .iter()
+                .any(|c| c.callee == "__builtin_types_compatible_p")
+        );
+    }
+
+    #[test]
+    fn macro_named_functions_keep_distinct_source_expressions_and_calls() {
+        let r = extract_c_source("wrapped.c", b"int LIB_WEAK_SYMBOL API_NAME(first)(int x) { return x; }\nint API_NAME(second)(int x) { return API_NAME(first)(x); }\nint (*factory(void))(int) { return 0; }\nint API_NAME(first_)(int x) { return API_NAME(first)(x); }\n");
+        assert!(labels(&r).contains(&"API_NAME(first)()".into()), "{r:?}");
+        assert!(labels(&r).contains(&"API_NAME(second)()".into()));
+        assert!(labels(&r).contains(&"factory()".into()));
+        assert!(
+            rels(&r, "calls").contains(&("API_NAME(second)()".into(), "API_NAME(first)()".into()))
+        );
+        assert!(!labels(&r).contains(&"API_NAME()".into()));
+        let first = r
+            .nodes
+            .iter()
+            .find(|n| n.label == "API_NAME(first)()")
+            .unwrap();
+        let variant = r
+            .nodes
+            .iter()
+            .find(|n| n.label == "API_NAME(first_)()")
+            .unwrap();
+        assert_ne!(first.id, variant.id);
+        let upper = extract_c_source("upper.c", b"int C_INTFACE(int x) { return x; }\n");
+        assert!(!upper.parse_error);
+        assert!(labels(&upper).contains(&"C_INTFACE()".into()));
+    }
+
+    #[test]
+    fn typedefs_cover_anonymous_aggregates_multiple_names_and_function_pointers() {
+        let r = extract_c_source("types.c", b"typedef struct { int x; } Point, *PointPtr;\ntypedef int (*Callback)(Point *);\ntypedef struct Tag { Point p; } Tag;\nvoid run(Callback cb) {}\n");
+        assert!(!r.parse_error);
+        for name in ["Point", "PointPtr", "Callback", "Tag"] {
+            assert_eq!(
+                r.nodes
+                    .iter()
+                    .filter(|n| n.label == name && !n.source_file.is_empty())
+                    .count(),
+                1,
+                "{r:?}"
+            );
+        }
+        assert!(rels(&r, "references").contains(&("run()".into(), "Callback".into())));
+        assert!(!r.nodes.iter().any(|n| n.label == "Callback()"));
+    }
+
+    #[test]
+    fn aggregate_definitions_are_nodes_but_type_uses_are_not_declarations() {
+        let r = extract_c_source("types.c", b"struct State { int count; };\nunion Value { int i; float f; };\nenum Mode { READY, DONE };\nvoid run(struct Missing *p) {}\n");
+        for name in ["State", "Value", "Mode"] {
+            assert!(
+                r.nodes
+                    .iter()
+                    .any(|n| n.label == name && !n.source_file.is_empty()),
+                "{r:?}"
+            );
+        }
+        assert!(
+            !r.nodes
+                .iter()
+                .any(|n| n.label == "Missing" && !n.source_file.is_empty())
+        );
+    }
+
+    #[test]
+    fn source_variants_keep_distinct_declarations_and_calls() {
+        let source = b"static void work(void) {}\nint main(void) { work(); return 0; }\n";
+        let plain = extract_c_source("examples/driver.c", source);
+        for path in [
+            "examples/driver_.c",
+            "examples/DRIVER.c",
+            "examples/driver.cpp",
+        ] {
+            let variant = extract_c_source(path, source);
+            let ids: std::collections::HashSet<_> = plain.nodes.iter().map(|n| &n.id).collect();
+            assert!(variant.nodes.iter().all(|n| !ids.contains(&n.id)), "{path}");
+            assert!(rels(&variant, "calls").contains(&("main()".into(), "work()".into())));
+        }
     }
 
     #[test]

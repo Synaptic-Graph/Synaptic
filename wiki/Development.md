@@ -58,6 +58,13 @@ publishes checksums and artifact attestations to a GitHub Release, and syncs `wi
 
 ## Benchmarks
 
+For the parser validation corpus and independent compiler checks, see
+[`BENCHMARKS.md`](https://github.com/ColinVaughn/Synaptic/blob/master/BENCHMARKS.md)
+and the linked review reports.
+The vendored Groovy grammar includes its source, generated C, regression corpus
+and original licenses under `vendor/tree-sitter-groovy/`; ordinary Rust builds
+do not need the grammar generator.
+
 Several crates ship Criterion benchmarks (for example `synaptic-extract`,
 `synaptic-detect`, `synaptic-output`). Run them with:
 

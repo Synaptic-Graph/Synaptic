@@ -10,6 +10,62 @@ All notable changes to Synaptic are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-08
+
+### Added
+
+- Build-aware C, C++ and Fortran extraction reads compilation databases, response
+  files, preprocessing flags and source-form settings. CMake target dependencies
+  constrain native call resolution, and headers are parsed in a real translation
+  unit's include context with source-line mapping.
+- Optional Groovy compiler facts add AST-transform-generated methods and exact
+  compiler-resolved calls. Imports validate source and classpath freshness;
+  unresolved dynamic calls retain explicit uncertainty.
+- Independent Clang, GFortran and Groovy validation scripts compare declarations
+  and call targets against pinned open-source repositories, including negative
+  controls for missing overloads and incorrect implementation files.
+
+### Changed
+
+- Groovy uses a vendored native grammar with broader Gradle/Spock DSL support,
+  including command chains, quoted methods, annotations, traits, records,
+  closures, arrays, tuples, loops and mixed modifiers. Rust builds use checked-in
+  generated sources and do not require Node.js.
+- Fortran incremental updates follow reverse module and call dependencies.
+  Build-configured projects rebuild conservatively to refresh headers, flags and
+  compiler facts.
+- Quality gates use comment-aware declaration anchors, corrected Fortran Ctags
+  coverage and separate parser/recovery measurements. The expanded validation
+  corpus pins 13 repositories and includes HTTP Builder NG, WSLite and FPM.
+
+### Fixed
+
+- Fortran fixed-form comments, continuations and numeric literals; internal
+  procedures; lexical and `USE` association; accessibility and renames; generic
+  overload selection; type-bound dispatch; submodule implementation targets; and
+  intrinsic shadowing.
+- C/C++ macro-decorated declarations, aggregate and alias extraction, overload
+  ambiguity, internal linkage and C/C++ language-linkage boundaries.
+- Groovy overload and anonymous-body method ID collisions, escaped quoted names,
+  constructor anchors and calls previously mistaken for declarations.
+- File and symbol IDs that collided across source variants or languages, and
+  Kubernetes resource anchors in multi-document YAML.
+- The desktop command catalog now includes the existing `chart` command.
+
+### Validation and upgrade notes
+
+- All 13 repository gates pass over 13,000 files and 82,591 declaration anchors.
+  All 666 reviewed Groovy files parse without errors; 5,851 declarations accepted
+  by the Groovy compiler match distinct graph nodes. Configured CMINPACK and
+  FFTPACK match all 349 checked compiler call targets. Validation also includes
+  2,774 Rust tests, 523 grammar cases, 44 upstream CMINPACK tests and two compiled
+  and executed FFTPACK examples.
+- Re-extract existing projects after upgrading: corrected declaration identities
+  can change graph IDs. Compiler-assisted extraction requires the project's
+  compiler and build inputs; conflicting build configurations require selecting
+  one active configuration. Runtime-dynamic targets and remaining dialect gaps
+  are documented in the [validation report](eval/parser-validation.md).
+
 ## [1.1.1] - 2026-08-29
 
 ### Added

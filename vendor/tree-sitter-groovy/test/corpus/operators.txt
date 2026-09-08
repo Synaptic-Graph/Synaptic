@@ -1,0 +1,2090 @@
+==================
+Plain field access
+==================
+
+obj.field
+
+---
+
+(source_file
+  (expression_statement
+    (field_access
+      object: (identifier)
+      field: (identifier))))
+
+==================
+Chained field access
+==================
+
+a.b.c
+
+---
+
+(source_file
+  (expression_statement
+    (field_access
+      object: (field_access
+        object: (identifier)
+        field: (identifier))
+      field: (identifier))))
+
+==================
+Method call via field access
+==================
+
+obj.method()
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (field_access
+        object: (identifier)
+        field: (identifier))
+      arguments: (argument_list))))
+
+==================
+Method call with args via field access
+==================
+
+obj.method(arg)
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (field_access
+        object: (identifier)
+        field: (identifier))
+      arguments: (argument_list (identifier)))))
+
+==================
+as cast on identifier
+==================
+
+x as String
+
+---
+
+(source_file
+  (expression_statement
+    (cast_expression
+      value: (identifier)
+      type: (type_identifier))))
+
+==================
+as cast on literal
+==================
+
+42 as Long
+
+---
+
+(source_file
+  (expression_statement
+    (cast_expression
+      value: (number_literal)
+      type: (type_identifier))))
+
+==================
+as cast on list
+==================
+
+[1, 2] as Set
+
+---
+
+(source_file
+  (expression_statement
+    (cast_expression
+      value: (list_literal
+        (number_literal)
+        (number_literal))
+      type: (type_identifier))))
+
+==================
+as cast on closure
+==================
+
+{ a -> a } as Comparator
+
+---
+
+(source_file
+  (expression_statement
+    (cast_expression
+      value: (closure
+        (closure_parameters
+          (closure_parameter name: (identifier)))
+        (expression_statement (identifier)))
+      type: (type_identifier))))
+
+==================
+C-style cast and as-cast both yield type_identifier
+==================
+
+(String) x
+
+---
+
+(source_file
+  (expression_statement
+    (parenthesized_type_cast
+      type: (type_identifier)
+      value: (identifier))))
+
+==================
+as cast to qualified type
+==================
+
+x as java.util.Map
+
+---
+
+(source_file
+  (expression_statement
+    (cast_expression
+      value: (identifier)
+      type: (qualified_type
+        (type_identifier)
+        (type_identifier)
+        (type_identifier)))))
+
+==================
+as cast to deeply qualified type
+==================
+
+x as a.b.c.d.E
+
+---
+
+(source_file
+  (expression_statement
+    (cast_expression
+      value: (identifier)
+      type: (qualified_type
+        (type_identifier)
+        (type_identifier)
+        (type_identifier)
+        (type_identifier)
+        (type_identifier)))))
+
+==================
+Plain assignment
+==================
+
+a = b
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Add-assign
+==================
+
+a += 1
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (number_literal))))
+
+==================
+Subtract-assign
+==================
+
+a -= 1
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (number_literal))))
+
+==================
+Multiply-assign
+==================
+
+a *= 2
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (number_literal))))
+
+==================
+Divide-assign
+==================
+
+a /= 2
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (number_literal))))
+
+==================
+Modulo-assign
+==================
+
+a %= 2
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (number_literal))))
+
+==================
+Power-assign
+==================
+
+a **= 2
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (number_literal))))
+
+==================
+Shift-left assign
+==================
+
+a <<= 2
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (number_literal))))
+
+==================
+Shift-right assign
+==================
+
+a >>= 2
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (number_literal))))
+
+==================
+Shift-right unsigned assign
+==================
+
+a >>>= 2
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (number_literal))))
+
+==================
+Bitwise AND assign
+==================
+
+a &= b
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Bitwise XOR assign
+==================
+
+a ^= b
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Bitwise OR assign
+==================
+
+a |= b
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Elvis assign
+==================
+
+a ?= b
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Assignment is right-associative
+==================
+
+a = b = c
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (assignment_expression
+        left: (identifier)
+        right: (identifier)))))
+
+==================
+Assignment is looser than ternary
+==================
+
+a = b ? c : d
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (ternary_expression
+        condition: (identifier)
+        consequence: (identifier)
+        alternative: (identifier)))))
+
+==================
+Plus-assign disambiguates from plus
+==================
+
+a + b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Parenthesised type cast
+==================
+
+(String) x
+
+---
+
+(source_file
+  (expression_statement
+    (parenthesized_type_cast
+      type: (type_identifier)
+      value: (identifier))))
+
+==================
+Type cast with literal value
+==================
+
+(int) 3.14
+
+---
+
+(source_file
+  (expression_statement
+    (parenthesized_type_cast
+      type: (type_identifier)
+      value: (number_literal))))
+
+==================
+Type cast with field access value
+==================
+
+(Foo) obj.field
+
+---
+
+(source_file
+  (expression_statement
+    (parenthesized_type_cast
+      type: (type_identifier)
+      value: (field_access
+        object: (identifier)
+        field: (identifier)))))
+
+==================
+Type cast then method call
+==================
+
+(Foo) obj.method()
+
+---
+
+(source_file
+  (expression_statement
+    (parenthesized_type_cast
+      type: (type_identifier)
+      value: (method_invocation
+        function: (field_access
+          object: (identifier)
+          field: (identifier))
+        arguments: (argument_list)))))
+
+==================
+Type cast with unary operand
+==================
+
+(int) -x
+
+---
+
+(source_file
+  (expression_statement
+    (parenthesized_type_cast
+      type: (type_identifier)
+      value: (unary_expression
+        operand: (identifier)))))
+
+==================
+Parens around bare identifier is parenthesized_expression
+==================
+
+(x)
+
+---
+
+(source_file
+  (expression_statement
+    (parenthesized_expression
+      (identifier))))
+
+==================
+Direct field access
+==================
+
+obj.@field
+
+---
+
+(source_file
+  (expression_statement
+    (direct_field_access_expression
+      object: (identifier)
+      field: (identifier))))
+
+==================
+Direct field access bypasses getter
+==================
+
+bean.@property
+
+---
+
+(source_file
+  (expression_statement
+    (direct_field_access_expression
+      object: (identifier)
+      field: (identifier))))
+
+==================
+Direct field access distinguished from regular dot
+==================
+
+obj.field
+
+---
+
+(source_file
+  (expression_statement
+    (field_access
+      object: (identifier)
+      field: (identifier))))
+
+==================
+Elvis at top level
+==================
+
+a ?: b
+
+---
+
+(source_file
+  (expression_statement
+    (elvis_expression
+      value: (identifier)
+      default: (identifier))))
+
+==================
+Elvis with literals
+==================
+
+x ?: 0
+
+---
+
+(source_file
+  (expression_statement
+    (elvis_expression
+      value: (identifier)
+      default: (number_literal))))
+
+==================
+Elvis right-associative chain (dekobon #246 anchor)
+==================
+
+a ?: b ?: c
+
+---
+
+(source_file
+  (expression_statement
+    (elvis_expression
+      value: (identifier)
+      default: (elvis_expression
+        value: (identifier)
+        default: (identifier)))))
+
+==================
+Elvis longer chain
+==================
+
+a ?: b ?: c ?: d
+
+---
+
+(source_file
+  (expression_statement
+    (elvis_expression
+      value: (identifier)
+      default: (elvis_expression
+        value: (identifier)
+        default: (elvis_expression
+          value: (identifier)
+          default: (identifier))))))
+
+==================
+Elvis inside list literal
+==================
+
+[a ?: b, c ?: d]
+
+---
+
+(source_file
+  (expression_statement
+    (list_literal
+      (elvis_expression value: (identifier) default: (identifier))
+      (elvis_expression value: (identifier) default: (identifier)))))
+
+==================
+Identity ===
+==================
+
+a === b
+
+---
+
+(source_file
+  (expression_statement
+    (identity_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Non-identity !==
+==================
+
+a !== b
+
+---
+
+(source_file
+  (expression_statement
+    (identity_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Identity disambiguates from equality
+==================
+
+a == b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Identity vs equality side by side
+==================
+
+a === b == c
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identity_expression
+        left: (identifier)
+        right: (identifier))
+      right: (identifier))))
+
+==================
+Logical implication
+==================
+
+a ==> b
+
+---
+
+(source_file
+  (expression_statement
+    (logical_implication_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Implication right-associative chain
+==================
+
+a ==> b ==> c
+
+---
+
+(source_file
+  (expression_statement
+    (logical_implication_expression
+      left: (identifier)
+      right: (logical_implication_expression
+        left: (identifier)
+        right: (identifier)))))
+
+==================
+Implication distinguished from identity
+==================
+
+a === b
+
+---
+
+(source_file
+  (expression_statement
+    (identity_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Implication distinguished from regex match
+==================
+
+a ==~ b
+
+---
+
+(source_file
+  (expression_statement
+    (regex_match_expression
+      subject: (identifier)
+      pattern: (identifier))))
+
+==================
+instanceof on identifier
+==================
+
+x instanceof String
+
+---
+
+(source_file
+  (expression_statement
+    (instanceof_expression
+      value: (identifier)
+      type: (type_identifier))))
+
+==================
+not-instanceof
+==================
+
+x !instanceof String
+
+---
+
+(source_file
+  (expression_statement
+    (instanceof_expression
+      value: (identifier)
+      type: (type_identifier))))
+
+==================
+instanceof in conditional
+==================
+
+x instanceof Foo ? a : b
+
+---
+
+(source_file
+  (expression_statement
+    (ternary_expression
+      condition: (instanceof_expression
+        value: (identifier)
+        type: (type_identifier))
+      consequence: (identifier)
+      alternative: (identifier))))
+
+==================
+instanceof on field access
+==================
+
+obj.field instanceof Number
+
+---
+
+(source_file
+  (expression_statement
+    (instanceof_expression
+      value: (field_access
+        object: (identifier)
+        field: (identifier))
+      type: (type_identifier))))
+
+==================
+instanceof with qualified type
+==================
+
+x instanceof java.lang.Number
+
+---
+
+(source_file
+  (expression_statement
+    (instanceof_expression
+      value: (identifier)
+      type: (qualified_type
+        (type_identifier)
+        (type_identifier)
+        (type_identifier)))))
+
+==================
+not-instanceof with qualified type
+==================
+
+x !instanceof java.util.Collection
+
+---
+
+(source_file
+  (expression_statement
+    (instanceof_expression
+      value: (identifier)
+      type: (qualified_type
+        (type_identifier)
+        (type_identifier)
+        (type_identifier)))))
+
+==================
+not-instanceof requires trailing whitespace (no mis-tokenisation)
+==================
+
+x
+!instanceofX
+
+---
+
+(source_file
+  (expression_statement (identifier))
+  (expression_statement
+    (unary_expression
+      operand: (identifier))))
+
+==================
+Member of collection
+==================
+
+x in xs
+
+---
+
+(source_file
+  (expression_statement
+    (membership_expression
+      element: (identifier)
+      collection: (identifier))))
+
+==================
+Not in collection
+==================
+
+x !in xs
+
+---
+
+(source_file
+  (expression_statement
+    (membership_expression
+      element: (identifier)
+      collection: (identifier))))
+
+==================
+In with list literal
+==================
+
+x in [1, 2, 3]
+
+---
+
+(source_file
+  (expression_statement
+    (membership_expression
+      element: (identifier)
+      collection: (list_literal
+        (number_literal)
+        (number_literal)
+        (number_literal)))))
+
+==================
+Not-in with list literal
+==================
+
+x !in [1, 2, 3]
+
+---
+
+(source_file
+  (expression_statement
+    (membership_expression
+      element: (identifier)
+      collection: (list_literal
+        (number_literal)
+        (number_literal)
+        (number_literal)))))
+
+==================
+Membership in conditional
+==================
+
+x in xs ? a : b
+
+---
+
+(source_file
+  (expression_statement
+    (ternary_expression
+      condition: (membership_expression
+        element: (identifier)
+        collection: (identifier))
+      consequence: (identifier)
+      alternative: (identifier))))
+
+==================
+not-in requires trailing whitespace or bracket (no mis-tokenisation)
+==================
+
+a
+!inXs
+
+---
+
+(source_file
+  (expression_statement (identifier))
+  (expression_statement
+    (unary_expression
+      operand: (identifier))))
+
+==================
+Method pointer single
+==================
+
+obj.&method
+
+---
+
+(source_file
+  (expression_statement
+    (method_pointer_expression
+      object: (identifier)
+      method: (identifier))))
+
+==================
+Method pointer chained
+==================
+
+a.&b
+
+---
+
+(source_file
+  (expression_statement
+    (method_pointer_expression
+      object: (identifier)
+      method: (identifier))))
+
+==================
+Method pointer passed as argument
+==================
+
+list.collect(obj.&method)
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (field_access
+        object: (identifier)
+        field: (identifier))
+      arguments: (argument_list
+        (method_pointer_expression
+          object: (identifier)
+          method: (identifier))))))
+
+==================
+Method reference on class
+==================
+
+String::length
+
+---
+
+(source_file
+  (expression_statement
+    (method_reference_expression
+      target: (identifier)
+      name: (identifier))))
+
+==================
+Method reference on instance
+==================
+
+obj::method
+
+---
+
+(source_file
+  (expression_statement
+    (method_reference_expression
+      target: (identifier)
+      name: (identifier))))
+
+==================
+Constructor reference
+==================
+
+Foo::new
+
+---
+
+(source_file
+  (expression_statement
+    (method_reference_expression
+      target: (identifier))))
+
+==================
+Method reference passed as argument
+==================
+
+list.stream(String::length)
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (field_access
+        object: (identifier)
+        field: (identifier))
+      arguments: (argument_list
+        (method_reference_expression
+          target: (identifier)
+          name: (identifier))))))
+
+==================
+Power on identifiers
+==================
+
+a ** b
+
+---
+
+(source_file
+  (expression_statement
+    (power_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Power on number literals
+==================
+
+2 ** 8
+
+---
+
+(source_file
+  (expression_statement
+    (power_expression
+      left: (number_literal)
+      right: (number_literal))))
+
+==================
+Power right-associative chain
+==================
+
+1 ** 2 ** 3
+
+---
+
+(source_file
+  (expression_statement
+    (power_expression
+      left: (number_literal)
+      right: (power_expression
+        left: (number_literal)
+        right: (number_literal)))))
+
+==================
+Unary minus is looser than power
+==================
+
+-2 ** 3
+
+---
+
+(source_file
+  (expression_statement
+    (unary_expression
+      operand: (power_expression
+        left: (number_literal)
+        right: (number_literal)))))
+
+==================
+Bitwise complement is tighter than power
+==================
+
+~2 ** 3
+
+---
+
+(source_file
+  (expression_statement
+    (power_expression
+      left: (unary_expression
+        operand: (number_literal))
+      right: (number_literal))))
+
+==================
+Logical not is tighter than power
+==================
+
+!a ** b
+
+---
+
+(source_file
+  (expression_statement
+    (power_expression
+      left: (unary_expression
+        operand: (identifier))
+      right: (identifier))))
+
+==================
+Power is tighter than multiplicative
+==================
+
+a * b ** c
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (power_expression
+        left: (identifier)
+        right: (identifier)))))
+
+==================
+Power-assign is one token, not power then assign
+==================
+
+a **= b
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (identifier))))
+
+; Apache precedence tiebreaks per SPECIFICATION.md §8.1.
+; Each case below pins the cross-tier parse where two operators
+; with the same level (or adjacent levels) compete.
+
+==================
+Range and shift share the same level — left assoc wins
+==================
+
+0..n<<1
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (range_expression
+        start: (number_literal)
+        end: (identifier))
+      right: (number_literal))))
+
+==================
+Ternary and Elvis share the conditional level
+==================
+
+a ? b ?: c : d
+
+---
+
+(source_file
+  (expression_statement
+    (ternary_expression
+      condition: (identifier)
+      consequence: (elvis_expression
+        value: (identifier)
+        default: (identifier))
+      alternative: (identifier))))
+
+==================
+Elvis is right-associative
+==================
+
+a ?: b ?: c
+
+---
+
+(source_file
+  (expression_statement
+    (elvis_expression
+      value: (identifier)
+      default: (elvis_expression
+        value: (identifier)
+        default: (identifier)))))
+
+==================
+Logical implication is right-associative
+==================
+
+a ==> b ==> c
+
+---
+
+(source_file
+  (expression_statement
+    (logical_implication_expression
+      left: (identifier)
+      right: (logical_implication_expression
+        left: (identifier)
+        right: (identifier)))))
+
+==================
+Power is right-associative
+==================
+
+1 ** 2 ** 3
+
+---
+
+(source_file
+  (expression_statement
+    (power_expression
+      left: (number_literal)
+      right: (power_expression
+        left: (number_literal)
+        right: (number_literal)))))
+
+==================
+Unary plus and minus are looser than power
+==================
+
+-2 ** 3
+
+---
+
+(source_file
+  (expression_statement
+    (unary_expression
+      operand: (power_expression
+        left: (number_literal)
+        right: (number_literal)))))
+
+==================
+Bitwise complement is tighter than power
+==================
+
+~2 ** 3
+
+---
+
+(source_file
+  (expression_statement
+    (power_expression
+      left: (unary_expression
+        operand: (number_literal))
+      right: (number_literal))))
+
+==================
+Inclusive range
+==================
+
+a..b
+
+---
+
+(source_file
+  (expression_statement
+    (range_expression
+      start: (identifier)
+      end: (identifier))))
+
+==================
+Exclusive-right range
+==================
+
+a..<b
+
+---
+
+(source_file
+  (expression_statement
+    (range_expression
+      start: (identifier)
+      end: (identifier))))
+
+==================
+Exclusive-left range
+==================
+
+a<..b
+
+---
+
+(source_file
+  (expression_statement
+    (range_expression
+      start: (identifier)
+      end: (identifier))))
+
+==================
+Exclusive both range
+==================
+
+a<..<b
+
+---
+
+(source_file
+  (expression_statement
+    (range_expression
+      start: (identifier)
+      end: (identifier))))
+
+==================
+Range with number literals
+==================
+
+0..10
+
+---
+
+(source_file
+  (expression_statement
+    (range_expression
+      start: (number_literal)
+      end: (number_literal))))
+
+==================
+Exclusive range on numbers (dekobon #247 anchor)
+==================
+
+0..<n
+
+---
+
+(source_file
+  (expression_statement
+    (range_expression
+      start: (number_literal)
+      end: (identifier))))
+
+==================
+Regex find with string pattern
+==================
+
+s =~ '[a-z]+'
+
+---
+
+(source_file
+  (expression_statement
+    (regex_find_expression
+      subject: (identifier)
+      pattern: (string_literal))))
+
+==================
+Regex match with string pattern
+==================
+
+s ==~ '^abc$'
+
+---
+
+(source_file
+  (expression_statement
+    (regex_match_expression
+      subject: (identifier)
+      pattern: (string_literal))))
+
+==================
+Find vs match are distinct node kinds
+==================
+
+x =~ p
+
+---
+
+(source_file
+  (expression_statement
+    (regex_find_expression
+      subject: (identifier)
+      pattern: (identifier))))
+
+==================
+Regex match is one token, not equality plus complement
+==================
+
+a ==~ b
+
+---
+
+(source_file
+  (expression_statement
+    (regex_match_expression
+      subject: (identifier)
+      pattern: (identifier))))
+
+==================
+Equality plus unary complement with intervening space
+==================
+
+a == ~b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (unary_expression
+        operand: (identifier)))))
+
+==================
+Slashy regex after assignment operator
+==================
+
+def x = /pattern/
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (string_literal
+        (string_fragment)))))
+
+==================
+Slashy regex inside list literal
+==================
+
+def xs = [/foo/, /bar/]
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (list_literal
+        (string_literal
+          (string_fragment))
+        (string_literal
+          (string_fragment))))))
+
+==================
+Slashy after return keyword
+==================
+
+def f() { return /home/ }
+
+---
+
+(source_file
+  (method_declaration
+    name: (identifier)
+    parameters: (formal_parameters)
+    body: (block
+      (return_statement
+        (string_literal
+          (string_fragment))))))
+
+==================
+Slash with surrounding spaces parses as division (not slashy)
+==================
+
+a / b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Repeated division in expression
+==================
+
+def y = a / b / c
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (binary_expression
+        left: (binary_expression
+          left: (identifier)
+          right: (identifier))
+        right: (identifier)))))
+
+==================
+Augmented division-assign still works
+==================
+
+a /= b
+
+---
+
+(source_file
+  (expression_statement
+    (assignment_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Safe chain dot single
+==================
+
+obj??.field
+
+---
+
+(source_file
+  (expression_statement
+    (safe_chain_dot_expression
+      object: (identifier)
+      property: (identifier))))
+
+==================
+Safe chain dot chained
+==================
+
+a??.b??.c
+
+---
+
+(source_file
+  (expression_statement
+    (safe_chain_dot_expression
+      object: (safe_chain_dot_expression
+        object: (identifier)
+        property: (identifier))
+      property: (identifier))))
+
+==================
+Safe chain dot distinguished from safe navigation
+==================
+
+a?.b
+
+---
+
+(source_file
+  (expression_statement
+    (safe_navigation_expression
+      object: (identifier)
+      property: (identifier))))
+
+==================
+Safe chain dot distinguished from Elvis
+==================
+
+a?:b
+
+---
+
+(source_file
+  (expression_statement
+    (elvis_expression
+      value: (identifier)
+      default: (identifier))))
+
+==================
+Safe navigation single
+==================
+
+obj?.field
+
+---
+
+(source_file
+  (expression_statement
+    (safe_navigation_expression
+      object: (identifier)
+      property: (identifier))))
+
+==================
+Safe navigation chained
+==================
+
+obj?.field?.other
+
+---
+
+(source_file
+  (expression_statement
+    (safe_navigation_expression
+      object: (safe_navigation_expression
+        object: (identifier)
+        property: (identifier))
+      property: (identifier))))
+
+==================
+Safe navigation method call
+==================
+
+obj?.method()
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (safe_navigation_expression
+        object: (identifier)
+        property: (identifier))
+      arguments: (argument_list))))
+
+==================
+Safe navigation mixed with dot
+==================
+
+a.b?.c.d
+
+---
+
+(source_file
+  (expression_statement
+    (field_access
+      object: (safe_navigation_expression
+        object: (field_access
+          object: (identifier)
+          field: (identifier))
+        property: (identifier))
+      field: (identifier))))
+
+==================
+Spaceship on identifiers
+==================
+
+a <=> b
+
+---
+
+(source_file
+  (expression_statement
+    (spaceship_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Spaceship on number literals
+==================
+
+1 <=> 2
+
+---
+
+(source_file
+  (expression_statement
+    (spaceship_expression
+      left: (number_literal)
+      right: (number_literal))))
+
+==================
+Spaceship distinguished from <=
+==================
+
+a <= b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Spaceship inside list literal
+==================
+
+[a <=> b, c <=> d]
+
+---
+
+(source_file
+  (expression_statement
+    (list_literal
+      (spaceship_expression left: (identifier) right: (identifier))
+      (spaceship_expression left: (identifier) right: (identifier)))))
+
+==================
+Spread dot single
+==================
+
+items*.size
+
+---
+
+(source_file
+  (expression_statement
+    (spread_dot_expression
+      object: (identifier)
+      property: (identifier))))
+
+==================
+Spread dot method call
+==================
+
+items*.size()
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (spread_dot_expression
+        object: (identifier)
+        property: (identifier))
+      arguments: (argument_list))))
+
+==================
+Spread dot chained with regular dot
+==================
+
+list*.foo.bar
+
+---
+
+(source_file
+  (expression_statement
+    (field_access
+      object: (spread_dot_expression
+        object: (identifier)
+        property: (identifier))
+      field: (identifier))))
+
+==================
+Spread arguments single
+==================
+
+f(*args)
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list
+        (spread_arguments value: (identifier))))))
+
+==================
+Spread arguments mixed with positional
+==================
+
+f(a, *rest)
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list
+        (identifier)
+        (spread_arguments value: (identifier))))))
+
+==================
+Spread arguments with list literal value
+==================
+
+f(*[1, 2, 3])
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list
+        (spread_arguments
+          value: (list_literal
+            (number_literal)
+            (number_literal)
+            (number_literal)))))))
+
+==================
+Spread map entry single
+==================
+
+[*: other]
+
+---
+
+(source_file
+  (expression_statement
+    (map_literal
+      (spread_map_entry value: (identifier)))))
+
+==================
+Spread map entry mixed with regular entries
+==================
+
+[*: defaults, key: value]
+
+---
+
+(source_file
+  (expression_statement
+    (map_literal
+      (spread_map_entry value: (identifier))
+      (map_entry key: (identifier) value: (identifier)))))
+
+==================
+Spread dot is still distinct
+==================
+
+items*.size()
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (spread_dot_expression
+        object: (identifier)
+        property: (identifier))
+      arguments: (argument_list))))
+
+==================
+Basic subscript
+==================
+
+arr[0]
+
+---
+
+(source_file
+  (expression_statement
+    (subscript_expression
+      object: (identifier)
+      index: (number_literal))))
+
+==================
+Subscript with identifier index
+==================
+
+m[key]
+
+---
+
+(source_file
+  (expression_statement
+    (subscript_expression
+      object: (identifier)
+      index: (identifier))))
+
+==================
+Subscript with string index
+==================
+
+m['key']
+
+---
+
+(source_file
+  (expression_statement
+    (subscript_expression
+      object: (identifier)
+      index: (string_literal))))
+
+==================
+Chained subscript
+==================
+
+m[i][j]
+
+---
+
+(source_file
+  (expression_statement
+    (subscript_expression
+      object: (subscript_expression
+        object: (identifier)
+        index: (identifier))
+      index: (identifier))))
+
+==================
+Subscript with expression index
+==================
+
+a[i + 1]
+
+---
+
+(source_file
+  (expression_statement
+    (subscript_expression
+      object: (identifier)
+      index: (binary_expression
+        left: (identifier)
+        right: (number_literal)))))
+
+==================
+Safe subscript on identifier
+==================
+
+arr?[0]
+
+---
+
+(source_file
+  (expression_statement
+    (safe_subscript_expression
+      object: (identifier)
+      index: (number_literal))))
+
+==================
+Chained safe subscript
+==================
+
+m?[i]?[j]
+
+---
+
+(source_file
+  (expression_statement
+    (safe_subscript_expression
+      object: (safe_subscript_expression
+        object: (identifier)
+        index: (identifier))
+      index: (identifier))))
+
+==================
+Mixed safe and regular subscript
+==================
+
+m[i]?[j]
+
+---
+
+(source_file
+  (expression_statement
+    (safe_subscript_expression
+      object: (subscript_expression
+        object: (identifier)
+        index: (identifier))
+      index: (identifier))))
+
+==================
+Ternary with list does not collide with safe subscript
+==================
+
+a ? [1, 2] : null
+
+---
+
+(source_file
+  (expression_statement
+    (ternary_expression
+      condition: (identifier)
+      consequence: (list_literal
+        (number_literal)
+        (number_literal))
+      alternative: (null_literal))))
+
+==================
+Subscript binds tighter than additive
+==================
+
+a[i] + 1
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (subscript_expression
+        object: (identifier)
+        index: (identifier))
+      right: (number_literal))))
+
+==================
+Ternary at top level
+==================
+
+a ? b : c
+
+---
+
+(source_file
+  (expression_statement
+    (ternary_expression
+      condition: (identifier)
+      consequence: (identifier)
+      alternative: (identifier))))
+
+==================
+Ternary with literals
+==================
+
+flag ? 1 : 0
+
+---
+
+(source_file
+  (expression_statement
+    (ternary_expression
+      condition: (identifier)
+      consequence: (number_literal)
+      alternative: (number_literal))))
+
+==================
+Nested ternary on alternative side
+==================
+
+a ? b : c ? d : e
+
+---
+
+(source_file
+  (expression_statement
+    (ternary_expression
+      condition: (identifier)
+      consequence: (identifier)
+      alternative: (ternary_expression
+        condition: (identifier)
+        consequence: (identifier)
+        alternative: (identifier)))))
+
+==================
+Elvis nests inside ternary middle slot (Apache precedence tiebreak)
+==================
+
+a ? b ?: c : d
+
+---
+
+(source_file
+  (expression_statement
+    (ternary_expression
+      condition: (identifier)
+      consequence: (elvis_expression
+        value: (identifier)
+        default: (identifier))
+      alternative: (identifier))))
+
+==================
+Ternary inside list literal
+==================
+
+[a ? b : c, d ? e : f]
+
+---
+
+(source_file
+  (expression_statement
+    (list_literal
+      (ternary_expression
+        condition: (identifier)
+        consequence: (identifier)
+        alternative: (identifier))
+      (ternary_expression
+        condition: (identifier)
+        consequence: (identifier)
+        alternative: (identifier)))))

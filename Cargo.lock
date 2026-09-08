@@ -937,6 +937,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "092966b41edc516079bdf31ec78a2e0588d1d0c08f78b91d8307215928642b2b"
 
 [[package]]
+name = "dekobon-tree-sitter-groovy"
+version = "0.3.0"
+dependencies = [
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
 name = "der"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4623,7 +4631,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -4669,7 +4677,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-api"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "criterion",
@@ -4691,7 +4699,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-change"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "serde",
@@ -4707,7 +4715,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-core"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "caseless",
  "regex",
@@ -4720,7 +4728,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-detect"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "criterion",
@@ -4734,7 +4742,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-eval"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "criterion",
  "serde",
@@ -4750,14 +4758,17 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "toml",
+ "tree-sitter",
+ "tree-sitter-javascript",
 ]
 
 [[package]]
 name = "synaptic-extract"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "criterion",
+ "dekobon-tree-sitter-groovy",
  "proptest",
  "rayon",
  "regex",
@@ -4778,7 +4789,6 @@ dependencies = [
  "tree-sitter-elixir",
  "tree-sitter-fortran",
  "tree-sitter-go",
- "tree-sitter-groovy",
  "tree-sitter-hcl",
  "tree-sitter-java",
  "tree-sitter-javascript",
@@ -4804,7 +4814,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-graph"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "criterion",
@@ -4820,7 +4830,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-history"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "criterion",
  "serde",
@@ -4834,7 +4844,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-incremental"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "criterion",
  "rayon",
@@ -4851,7 +4861,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-ingest"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "glob",
@@ -4871,7 +4881,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-llm"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -4892,7 +4902,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-memory"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "serde",
@@ -4905,7 +4915,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-output"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "criterion",
  "redis",
@@ -4918,7 +4928,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-predict"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "criterion",
  "serde",
@@ -4932,7 +4942,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-prs"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "criterion",
  "serde_json",
@@ -4941,7 +4951,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-query"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "criterion",
  "serde",
@@ -4952,7 +4962,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-readiness"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "regex",
  "serde",
@@ -4965,7 +4975,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-refactor"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "criterion",
  "regex",
@@ -4982,7 +4992,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-report"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "serde_json",
  "synaptic-core",
@@ -4992,7 +5002,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-sandbox"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "criterion",
  "serde",
@@ -5004,7 +5014,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-semantic"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "async-trait",
  "serde_json",
@@ -5017,7 +5027,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-server"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -5056,7 +5066,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-skillgen"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -5068,7 +5078,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-sqlaudit"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "regex",
  "serde",
@@ -5085,7 +5095,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-store"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "criterion",
@@ -5103,7 +5113,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-synql"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "criterion",
  "regex",
@@ -5116,7 +5126,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-ui"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "eframe",
  "rfd",
@@ -5126,7 +5136,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-upgrade"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "flate2",
@@ -5145,7 +5155,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-vuln"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "criterion",
@@ -5168,7 +5178,7 @@ dependencies = [
 
 [[package]]
 name = "synaptic-workspace"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "blake3",
  "criterion",
@@ -5646,16 +5656,6 @@ name = "tree-sitter-go"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8560a4d2f835cc0d4d2c2e03cbd0dde2f6114b43bc491164238d333e28b16ea"
-dependencies = [
- "cc",
- "tree-sitter-language",
-]
-
-[[package]]
-name = "tree-sitter-groovy"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a20016017f0865ba902ca50354f92429de5de8df994e64ab7fae087a13c40ed"
 dependencies = [
  "cc",
  "tree-sitter-language",

@@ -315,6 +315,11 @@ const CLI_TOOLS: &[ToolSpec] = &[
         summary: "Save the graph in another format or send it elsewhere.",
     },
     ToolSpec {
+        name: "chart",
+        group: "Explore",
+        summary: "Create an interactive architecture chart from the graph.",
+    },
+    ToolSpec {
         name: "prs",
         group: "Explore",
         summary: "Review a pull request and see its likely impact.",

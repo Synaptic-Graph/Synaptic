@@ -1,0 +1,5 @@
+// hello
+// <- comment
+
+foo
+// <- variable

@@ -1,10 +1,11 @@
 [workspace]
 resolver = "3"
 members = ["crates/*", "bin/*"]
+exclude = ["vendor/tree-sitter-groovy"]
 
 [workspace.package]
 edition = "2024"
-version = "1.1.1"
+version = "1.2.0"
 license = "AGPL-3.0-or-later"
 rust-version = "1.97"
 
@@ -89,7 +90,7 @@ tree-sitter-elixir = "0.3"
 tree-sitter-julia = "0.23"
 tree-sitter-dart = "0.2"
 tree-sitter-zig = "1.1"
-tree-sitter-groovy = "0.1"
+tree-sitter-groovy = { package = "dekobon-tree-sitter-groovy", version = "=0.3.0", path = "vendor/tree-sitter-groovy" }
 tree-sitter-objc = "3.0"
 tree-sitter-verilog = "1.0"
 tree-sitter-fortran = "0.6"

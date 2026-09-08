@@ -1,0 +1,2427 @@
+==================
+Addition
+==================
+
+a + b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Subtraction
+==================
+
+a - b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Multiplication
+==================
+
+a * b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Division
+==================
+
+a / b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Modulo
+==================
+
+a % b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Left-assoc addition
+==================
+
+a + b + c
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (binary_expression
+        left: (identifier)
+        right: (identifier))
+      right: (identifier))))
+
+==================
+Left-assoc subtraction
+==================
+
+a - b - c
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (binary_expression
+        left: (identifier)
+        right: (identifier))
+      right: (identifier))))
+
+==================
+Mul binds tighter than add (precedence)
+==================
+
+a + b * c
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (binary_expression
+        left: (identifier)
+        right: (identifier)))))
+
+==================
+Mul binds tighter than add — other side
+==================
+
+a * b + c
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (binary_expression
+        left: (identifier)
+        right: (identifier))
+      right: (identifier))))
+
+==================
+Mixed multiplicative left-assoc
+==================
+
+a * b / c
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (binary_expression
+        left: (identifier)
+        right: (identifier))
+      right: (identifier))))
+
+==================
+Parens override precedence
+==================
+
+(a + b) * c
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (parenthesized_expression
+        (binary_expression
+          left: (identifier)
+          right: (identifier)))
+      right: (identifier))))
+
+==================
+Unary binds tighter than binary
+==================
+
+-a + b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (unary_expression
+        operand: (identifier))
+      right: (identifier))))
+
+==================
+Arithmetic on number literals
+==================
+
+1 + 2 * 3 - 4
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (binary_expression
+        left: (number_literal)
+        right: (binary_expression
+          left: (number_literal)
+          right: (number_literal)))
+      right: (number_literal))))
+
+==================
+Shift left
+==================
+
+a << b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Shift right arithmetic
+==================
+
+a >> b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Shift right unsigned
+==================
+
+a >>> b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Less-than
+==================
+
+a < b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Less-or-equal
+==================
+
+a <= b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Greater-than
+==================
+
+a > b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Greater-or-equal
+==================
+
+a >= b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Equality
+==================
+
+a == b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Inequality
+==================
+
+a != b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Bitwise AND
+==================
+
+a & b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Bitwise XOR
+==================
+
+a ^ b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Bitwise OR
+==================
+
+a | b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Logical AND
+==================
+
+a && b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Logical OR
+==================
+
+a || b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Precedence: && binds tighter than ||
+==================
+
+a || b && c
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (binary_expression
+        left: (identifier)
+        right: (identifier)))))
+
+==================
+Precedence: == binds tighter than &&
+==================
+
+a == b && c == d
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (binary_expression
+        left: (identifier)
+        right: (identifier))
+      right: (binary_expression
+        left: (identifier)
+        right: (identifier)))))
+
+==================
+Precedence: shift binds looser than additive
+==================
+
+a + b << c
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (binary_expression
+        left: (identifier)
+        right: (identifier))
+      right: (identifier))))
+
+==================
+Precedence: < binds looser than shift
+==================
+
+a << b < c
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (binary_expression
+        left: (identifier)
+        right: (identifier))
+      right: (identifier))))
+
+==================
+Precedence: == binds looser than <
+==================
+
+a < b == c < d
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (binary_expression
+        left: (identifier)
+        right: (identifier))
+      right: (binary_expression
+        left: (identifier)
+        right: (identifier)))))
+
+==================
+Precedence: & looser than ==
+==================
+
+a == b & c
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (binary_expression
+        left: (identifier)
+        right: (identifier))
+      right: (identifier))))
+
+==================
+Precedence: ^ looser than &
+==================
+
+a & b ^ c
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (binary_expression
+        left: (identifier)
+        right: (identifier))
+      right: (identifier))))
+
+==================
+Precedence: | looser than ^
+==================
+
+a ^ b | c
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (binary_expression
+        left: (identifier)
+        right: (identifier))
+      right: (identifier))))
+
+==================
+Precedence: && looser than |
+==================
+
+a | b && c
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (binary_expression
+        left: (identifier)
+        right: (identifier))
+      right: (identifier))))
+
+==================
+Empty closure
+==================
+
+{ }
+
+---
+
+(source_file
+  (expression_statement (closure)))
+
+==================
+Closure with single statement body
+==================
+
+{ x }
+
+---
+
+(source_file
+  (expression_statement
+    (closure
+      (expression_statement (identifier)))))
+
+==================
+Closure with explicit empty parameter list
+==================
+
+{ -> }
+
+---
+
+(source_file
+  (expression_statement
+    (closure
+      (closure_parameters))))
+
+==================
+Closure with one parameter
+==================
+
+{ a -> a }
+
+---
+
+(source_file
+  (expression_statement
+    (closure
+      (closure_parameters
+        (closure_parameter name: (identifier)))
+      (expression_statement (identifier)))))
+
+==================
+Closure with multiple parameters
+==================
+
+{ a, b, c -> a }
+
+---
+
+(source_file
+  (expression_statement
+    (closure
+      (closure_parameters
+        (closure_parameter name: (identifier))
+        (closure_parameter name: (identifier))
+        (closure_parameter name: (identifier)))
+      (expression_statement (identifier)))))
+
+==================
+Closure with multiple statements in body
+==================
+
+{ a b c }
+
+---
+
+(source_file
+  (expression_statement
+    (closure
+      (expression_statement (identifier))
+      (expression_statement (identifier))
+      (expression_statement (identifier)))))
+
+==================
+Closure as list element
+==================
+
+[{ a -> a }, { b -> b }]
+
+---
+
+(source_file
+  (expression_statement
+    (list_literal
+      (closure
+        (closure_parameters
+          (closure_parameter name: (identifier)))
+        (expression_statement (identifier)))
+      (closure
+        (closure_parameters
+          (closure_parameter name: (identifier)))
+        (expression_statement (identifier))))))
+
+==================
+Nested closure
+==================
+
+{ a -> { b -> a } }
+
+---
+
+(source_file
+  (expression_statement
+    (closure
+      (closure_parameters
+        (closure_parameter name: (identifier)))
+      (expression_statement
+        (closure
+          (closure_parameters
+            (closure_parameter name: (identifier)))
+          (expression_statement (identifier)))))))
+
+==================
+Closure with typed parameter
+==================
+
+{ String s -> s }
+
+---
+
+(source_file
+  (expression_statement
+    (closure
+      (closure_parameters
+        (closure_parameter
+          type: (type_identifier)
+          name: (identifier)))
+      (expression_statement (identifier)))))
+
+==================
+Closure with multiple typed parameters
+==================
+
+{ String a, int b -> a }
+
+---
+
+(source_file
+  (expression_statement
+    (closure
+      (closure_parameters
+        (closure_parameter
+          type: (type_identifier)
+          name: (identifier))
+        (closure_parameter
+          type: (type_identifier)
+          name: (identifier)))
+      (expression_statement (identifier)))))
+
+==================
+Closure with mixed typed and untyped parameters
+==================
+
+{ String a, b -> b }
+
+---
+
+(source_file
+  (expression_statement
+    (closure
+      (closure_parameters
+        (closure_parameter
+          type: (type_identifier)
+          name: (identifier))
+        (closure_parameter
+          name: (identifier)))
+      (expression_statement (identifier)))))
+
+==================
+Closure with generic-typed parameter
+==================
+
+{ List<String> items -> items }
+
+---
+
+(source_file
+  (expression_statement
+    (closure
+      (closure_parameters
+        (closure_parameter
+          type: (generic_type
+            base: (type_identifier)
+            arguments: (type_arguments
+              (type_identifier)))
+          name: (identifier)))
+      (expression_statement (identifier)))))
+
+==================
+Command chain with string argument
+==================
+
+println 'hello'
+
+---
+
+(source_file
+  (command_chain
+    receiver: (identifier)
+    argument: (string_literal)))
+
+==================
+Command chain with number
+==================
+
+retry 3
+
+---
+
+(source_file
+  (command_chain
+    receiver: (identifier)
+    argument: (number_literal)))
+
+==================
+Command chain with boolean
+==================
+
+enabled true
+
+---
+
+(source_file
+  (command_chain
+    receiver: (identifier)
+    argument: (boolean_literal)))
+
+==================
+Command chain with null
+==================
+
+reset null
+
+---
+
+(source_file
+  (command_chain
+    receiver: (identifier)
+    argument: (null_literal)))
+
+==================
+Command chain with closure argument
+==================
+
+times { x }
+
+---
+
+(source_file
+  (command_chain
+    receiver: (identifier)
+    argument: (closure
+      (expression_statement (identifier)))))
+
+==================
+Subscript still parses as subscript
+==================
+
+arr[0]
+
+---
+
+(source_file
+  (expression_statement
+    (subscript_expression
+      object: (identifier)
+      index: (number_literal))))
+
+==================
+Two identifiers still parse as two statements
+==================
+
+foo
+bar
+
+---
+
+(source_file
+  (expression_statement (identifier))
+  (expression_statement (identifier)))
+
+==================
+Command chain with multiple string arguments
+==================
+
+events 'passed', 'failed', 'skipped'
+
+---
+
+(source_file
+  (command_chain
+    receiver: (identifier)
+    argument: (string_literal)
+    argument: (string_literal)
+    argument: (string_literal)))
+
+==================
+Command chain with mixed argument types
+==================
+
+log 'starting', 42, true
+
+---
+
+(source_file
+  (command_chain
+    receiver: (identifier)
+    argument: (string_literal)
+    argument: (number_literal)
+    argument: (boolean_literal)))
+
+==================
+Named-argument command chain (v1 fallback shape)
+==================
+
+archiveArtifacts artifacts: 'build/**/*'
+
+---
+
+(source_file
+  (expression_statement (identifier))
+  (labeled_statement
+    label: (identifier)
+    statement: (expression_statement (string_literal))))
+
+==================
+Empty list
+==================
+
+[]
+
+---
+
+(source_file
+  (expression_statement (list_literal)))
+
+==================
+Single-element list
+==================
+
+[1]
+
+---
+
+(source_file
+  (expression_statement
+    (list_literal (number_literal))))
+
+==================
+Multi-element list
+==================
+
+[1, 2, 3]
+
+---
+
+(source_file
+  (expression_statement
+    (list_literal
+      (number_literal)
+      (number_literal)
+      (number_literal))))
+
+==================
+List with trailing comma
+==================
+
+[1, 2,]
+
+---
+
+(source_file
+  (expression_statement
+    (list_literal
+      (number_literal)
+      (number_literal))))
+
+==================
+List of mixed expressions
+==================
+
+[1, 'two', null, true]
+
+---
+
+(source_file
+  (expression_statement
+    (list_literal
+      (number_literal)
+      (string_literal)
+      (null_literal)
+      (boolean_literal))))
+
+==================
+Nested list
+==================
+
+[[1, 2], [3, 4]]
+
+---
+
+(source_file
+  (expression_statement
+    (list_literal
+      (list_literal (number_literal) (number_literal))
+      (list_literal (number_literal) (number_literal)))))
+
+==================
+Empty map
+==================
+
+[:]
+
+---
+
+(source_file
+  (expression_statement (map_literal)))
+
+==================
+Single-entry map
+==================
+
+[a: 1]
+
+---
+
+(source_file
+  (expression_statement
+    (map_literal
+      (map_entry
+        key: (identifier)
+        value: (number_literal)))))
+
+==================
+Multi-entry map
+==================
+
+[a: 1, b: 2, c: 3]
+
+---
+
+(source_file
+  (expression_statement
+    (map_literal
+      (map_entry key: (identifier) value: (number_literal))
+      (map_entry key: (identifier) value: (number_literal))
+      (map_entry key: (identifier) value: (number_literal)))))
+
+==================
+Map with trailing comma
+==================
+
+[a: 1, b: 2,]
+
+---
+
+(source_file
+  (expression_statement
+    (map_literal
+      (map_entry key: (identifier) value: (number_literal))
+      (map_entry key: (identifier) value: (number_literal)))))
+
+==================
+Map with string keys
+==================
+
+['a': 1, 'b': 2]
+
+---
+
+(source_file
+  (expression_statement
+    (map_literal
+      (map_entry key: (string_literal) value: (number_literal))
+      (map_entry key: (string_literal) value: (number_literal)))))
+
+==================
+Nested map
+==================
+
+[outer: [inner: 1]]
+
+---
+
+(source_file
+  (expression_statement
+    (map_literal
+      (map_entry
+        key: (identifier)
+        value: (map_literal
+          (map_entry
+            key: (identifier)
+            value: (number_literal)))))))
+
+==================
+List containing map
+==================
+
+[[a: 1], [b: 2]]
+
+---
+
+(source_file
+  (expression_statement
+    (list_literal
+      (map_literal (map_entry key: (identifier) value: (number_literal)))
+      (map_literal (map_entry key: (identifier) value: (number_literal))))))
+
+==================
+Boolean true
+==================
+
+true
+
+---
+
+(source_file
+  (expression_statement (boolean_literal)))
+
+==================
+Boolean false
+==================
+
+false
+
+---
+
+(source_file
+  (expression_statement (boolean_literal)))
+
+==================
+Null
+==================
+
+null
+
+---
+
+(source_file
+  (expression_statement (null_literal)))
+
+==================
+Identifier resembling keyword prefix
+==================
+
+trueish
+
+---
+
+(source_file
+  (expression_statement (identifier)))
+
+==================
+Identifier resembling null prefix
+==================
+
+nullable
+
+---
+
+(source_file
+  (expression_statement (identifier)))
+
+==================
+Simple call no args
+==================
+
+f()
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list))))
+
+==================
+Call with one argument
+==================
+
+f(x)
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list (identifier)))))
+
+==================
+Call with multiple arguments
+==================
+
+f(a, b, c)
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list
+        (identifier)
+        (identifier)
+        (identifier)))))
+
+==================
+Call with literal arguments
+==================
+
+print(1, 'hello', null)
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list
+        (number_literal)
+        (string_literal)
+        (null_literal)))))
+
+==================
+Call with trailing comma
+==================
+
+f(a, b,)
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list
+        (identifier)
+        (identifier)))))
+
+==================
+Call with named argument
+==================
+
+f(key: value)
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list
+        (named_argument
+          key: (identifier)
+          value: (identifier))))))
+
+==================
+Call with mixed positional and named arguments
+==================
+
+f(a, key: value, b)
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list
+        (identifier)
+        (named_argument key: (identifier) value: (identifier))
+        (identifier)))))
+
+==================
+Chained calls
+==================
+
+f()()
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (method_invocation
+        function: (identifier)
+        arguments: (argument_list))
+      arguments: (argument_list))))
+
+==================
+Subscript chained with call (spec §3.2.1)
+==================
+
+stepImplementations[Platform](ctx)
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (subscript_expression
+        object: (identifier)
+        index: (identifier))
+      arguments: (argument_list (identifier)))))
+
+==================
+Call with expression arguments
+==================
+
+f(a + b, c * d)
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list
+        (binary_expression
+          left: (identifier)
+          right: (identifier))
+        (binary_expression
+          left: (identifier)
+          right: (identifier))))))
+
+==================
+Method invocation binds tighter than additive
+==================
+
+f(a) + b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (method_invocation
+        function: (identifier)
+        arguments: (argument_list (identifier)))
+      right: (identifier))))
+
+==================
+Nested calls in arguments
+==================
+
+f(g(x))
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list (identifier)))))))
+
+==================
+Decimal integer
+==================
+
+42
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+Decimal zero
+==================
+
+0
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+Decimal int with underscores
+==================
+
+1_000_000
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+Long literal with suffix L
+==================
+
+42L
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+Integer suffix I
+==================
+
+42i
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+BigInteger suffix G
+==================
+
+123G
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+Hex literal
+==================
+
+0xCAFEBABE
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+Hex with separators and suffix
+==================
+
+0xDEAD_BEEFL
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+Binary literal
+==================
+
+0b1010_1010
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+Float literal with dot
+==================
+
+3.14
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+Float with explicit D suffix
+==================
+
+3.14d
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+Float with F suffix
+==================
+
+3.14F
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+BigDecimal G suffix
+==================
+
+3.14G
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+Scientific without dot
+==================
+
+1e10
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+Scientific with dot and signed exponent
+==================
+
+1.5e-7
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+Underscores around scientific
+==================
+
+1_000.5e+1_0
+
+---
+
+(source_file
+  (expression_statement (number_literal)))
+
+==================
+New with no args
+==================
+
+new Foo()
+
+---
+
+(source_file
+  (expression_statement
+    (object_creation_expression
+      type: (type_identifier)
+      arguments: (argument_list))))
+
+==================
+New with single arg
+==================
+
+new Foo(x)
+
+---
+
+(source_file
+  (expression_statement
+    (object_creation_expression
+      type: (type_identifier)
+      arguments: (argument_list (identifier)))))
+
+==================
+New with multiple args
+==================
+
+new Point(1, 2)
+
+---
+
+(source_file
+  (expression_statement
+    (object_creation_expression
+      type: (type_identifier)
+      arguments: (argument_list
+        (number_literal)
+        (number_literal)))))
+
+==================
+New chained with field access
+==================
+
+new Foo().bar
+
+---
+
+(source_file
+  (expression_statement
+    (field_access
+      object: (object_creation_expression
+        type: (type_identifier)
+        arguments: (argument_list))
+      field: (identifier))))
+
+==================
+New chained with method call
+==================
+
+new Foo().bar()
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (field_access
+        object: (object_creation_expression
+          type: (type_identifier)
+          arguments: (argument_list))
+        field: (identifier))
+      arguments: (argument_list))))
+
+==================
+New passed as argument
+==================
+
+print(new Foo())
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list
+        (object_creation_expression
+          type: (type_identifier)
+          arguments: (argument_list))))))
+
+==================
+Quoted identifier after dot
+==================
+
+map."key with spaces"
+
+---
+
+(source_file
+  (expression_statement
+    (field_access
+      object: (identifier)
+      field: (quoted_identifier (string_fragment)))))
+
+==================
+Quoted identifier after safe nav
+==================
+
+map?."hello world"
+
+---
+
+(source_file
+  (expression_statement
+    (safe_navigation_expression
+      object: (identifier)
+      property: (quoted_identifier (string_fragment)))))
+
+==================
+Quoted method name in declaration
+==================
+
+def "test name"() { true }
+
+---
+
+(source_file
+  (method_declaration
+    name: (quoted_identifier (string_fragment))
+    parameters: (formal_parameters)
+    body: (block
+      (expression_statement (boolean_literal)))))
+
+==================
+Quoted method named like a keyword (Spock-style)
+==================
+
+def "abstract"() { 1 }
+
+---
+
+(source_file
+  (method_declaration
+    name: (quoted_identifier (string_fragment))
+    parameters: (formal_parameters)
+    body: (block
+      (expression_statement (number_literal)))))
+
+==================
+Quoted method call via field access
+==================
+
+obj."some method"()
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (field_access
+        object: (identifier)
+        field: (quoted_identifier (string_fragment)))
+      arguments: (argument_list))))
+
+==================
+Plain single-quoted string
+==================
+
+'hello'
+
+---
+
+(source_file
+  (expression_statement (string_literal)))
+
+==================
+Empty single-quoted string
+==================
+
+''
+
+---
+
+(source_file
+  (expression_statement (string_literal)))
+
+==================
+Single-quoted with escaped quote
+==================
+
+'it\'s fine'
+
+---
+
+(source_file
+  (expression_statement (string_literal)))
+
+==================
+Single-quoted with backslash escape
+==================
+
+'a\\b'
+
+---
+
+(source_file
+  (expression_statement (string_literal)))
+
+==================
+Single-quoted with newline escape
+==================
+
+'line\nbreak'
+
+---
+
+(source_file
+  (expression_statement (string_literal)))
+
+==================
+Single-quoted with unicode escape
+==================
+
+'éclair'
+
+---
+
+(source_file
+  (expression_statement (string_literal)))
+
+==================
+Triple-single-quoted empty
+==================
+
+''''''
+
+---
+
+(source_file
+  (expression_statement (string_literal)))
+
+==================
+Triple-single-quoted single line
+==================
+
+'''hello'''
+
+---
+
+(source_file
+  (expression_statement (string_literal)))
+
+==================
+Triple-single-quoted multi-line
+==================
+
+'''first
+second
+third'''
+
+---
+
+(source_file
+  (expression_statement (string_literal)))
+
+==================
+Triple-single-quoted with one internal quote
+==================
+
+'''it's fine'''
+
+---
+
+(source_file
+  (expression_statement (string_literal)))
+
+==================
+Triple-single-quoted with two internal quotes
+==================
+
+'''double''quote'''
+
+---
+
+(source_file
+  (expression_statement (string_literal)))
+
+==================
+Triple-single-quoted with escape sequences
+==================
+
+'''line\nbreak'''
+
+---
+
+(source_file
+  (expression_statement (string_literal)))
+
+==================
+Plain double-quoted string
+==================
+
+"hello"
+
+---
+
+(source_file
+  (expression_statement (string_literal (string_fragment))))
+
+==================
+Empty double-quoted string
+==================
+
+""
+
+---
+
+(source_file
+  (expression_statement (string_literal)))
+
+==================
+Double-quoted with escaped quote
+==================
+
+"she said \"hi\""
+
+---
+
+(source_file
+  (expression_statement (string_literal (string_fragment))))
+
+==================
+Double-quoted with backslash escape
+==================
+
+"a\\b"
+
+---
+
+(source_file
+  (expression_statement (string_literal (string_fragment))))
+
+==================
+Double-quoted with dollar interpolation
+==================
+
+"hello $name"
+
+---
+
+(source_file
+  (expression_statement
+    (string_literal
+      (string_fragment)
+      (gstring_dollar_interpolation
+        value: (identifier)))))
+
+==================
+Double-quoted with brace interpolation
+==================
+
+"hello ${target}"
+
+---
+
+(source_file
+  (expression_statement
+    (string_literal
+      (string_fragment)
+      (gstring_brace_interpolation
+        value: (identifier)))))
+
+==================
+Double-quoted with mixed interpolations
+==================
+
+"hello ${name}, $count items"
+
+---
+
+(source_file
+  (expression_statement
+    (string_literal
+      (string_fragment)
+      (gstring_brace_interpolation
+        value: (identifier))
+      (string_fragment)
+      (gstring_dollar_interpolation
+        value: (identifier))
+      (string_fragment))))
+
+==================
+Double-quoted with dotted dollar interpolation
+==================
+
+"value is $obj.field"
+
+---
+
+(source_file
+  (expression_statement
+    (string_literal
+      (string_fragment)
+      (gstring_dollar_interpolation
+        value: (identifier)))))
+
+==================
+Double-quoted with brace expression interpolation
+==================
+
+"result: ${a + b}"
+
+---
+
+(source_file
+  (expression_statement
+    (string_literal
+      (string_fragment)
+      (gstring_brace_interpolation
+        value: (binary_expression
+          left: (identifier)
+          right: (identifier))))))
+
+==================
+Triple-double-quoted empty
+==================
+
+""""""
+
+---
+
+(source_file
+  (expression_statement (string_literal)))
+
+==================
+Triple-double-quoted single line
+==================
+
+"""hello"""
+
+---
+
+(source_file
+  (expression_statement (string_literal (string_fragment))))
+
+==================
+Triple-double-quoted multi-line
+==================
+
+"""first
+second
+third"""
+
+---
+
+(source_file
+  (expression_statement (string_literal (string_fragment))))
+
+==================
+Triple-double-quoted with internal one quote
+==================
+
+"""it"s fine"""
+
+---
+
+(source_file
+  (expression_statement (string_literal (string_fragment))))
+
+==================
+Triple-double-quoted with two internal quotes
+==================
+
+"""double""quote"""
+
+---
+
+(source_file
+  (expression_statement (string_literal (string_fragment))))
+
+==================
+Triple-double-quoted with interpolation
+==================
+
+"""prefix $name suffix"""
+
+---
+
+(source_file
+  (expression_statement
+    (string_literal
+      (string_fragment)
+      (gstring_dollar_interpolation
+        value: (identifier))
+      (string_fragment))))
+
+==================
+Triple-double-quoted multi-line with interpolation
+==================
+
+"""first $name
+second ${expr}
+third"""
+
+---
+
+(source_file
+  (expression_statement
+    (string_literal
+      (string_fragment)
+      (gstring_dollar_interpolation
+        value: (identifier))
+      (string_fragment)
+      (gstring_brace_interpolation
+        value: (identifier))
+      (string_fragment))))
+
+==================
+Dollar-slashy plain string
+==================
+
+$/hello world/$
+
+---
+
+(source_file
+  (expression_statement
+    (string_literal
+      (string_fragment))))
+
+==================
+Dollar-slashy with slashes inside
+==================
+
+$/path/to/file/$
+
+---
+
+(source_file
+  (expression_statement
+    (string_literal
+      (string_fragment))))
+
+==================
+Dollar-slashy with dollar-escape
+==================
+
+$/cost is $$5/$
+
+---
+
+(source_file
+  (expression_statement
+    (string_literal
+      (string_fragment))))
+
+==================
+Dollar-slashy with slash escape
+==================
+
+$/x $/ inside/$
+
+---
+
+(source_file
+  (expression_statement
+    (string_literal
+      (string_fragment))))
+
+==================
+Dollar-slashy multi-line
+==================
+
+$/
+first
+second
+/$
+
+---
+
+(source_file
+  (expression_statement
+    (string_literal
+      (string_fragment))))
+
+==================
+Dollar-slashy with dollar interpolation
+==================
+
+$/name is $user/$
+
+---
+
+(source_file
+  (expression_statement
+    (string_literal
+      (string_fragment)
+      (gstring_dollar_interpolation
+        value: (identifier)))))
+
+==================
+Slashy string in assignment
+==================
+
+def pat = /[a-z]+/
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (string_literal
+        (string_fragment)))))
+
+==================
+Slashy string in regex match
+==================
+
+s =~ /[0-9]+/
+
+---
+
+(source_file
+  (expression_statement
+    (regex_find_expression
+      subject: (identifier)
+      pattern: (string_literal
+        (string_fragment)))))
+
+==================
+Slashy string with escaped slash
+==================
+
+def url = /path\/to\/file/
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (string_literal
+        (string_fragment)))))
+
+==================
+Slashy string with dollar interpolation
+==================
+
+def msg = /hello $name world/
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (string_literal
+        (string_fragment)
+        (gstring_dollar_interpolation
+          value: (identifier))
+        (string_fragment)))))
+
+==================
+Slashy string with brace interpolation
+==================
+
+def msg = /value ${expr}/
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (string_literal
+        (string_fragment)
+        (gstring_brace_interpolation
+          value: (identifier))))))
+
+==================
+Slashy string in list
+==================
+
+[/one/, /two/]
+
+---
+
+(source_file
+  (expression_statement
+    (list_literal
+      (string_literal
+        (string_fragment))
+      (string_literal
+        (string_fragment)))))
+
+==================
+Slashy string in method call arg
+==================
+
+println(/hello/)
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list
+        (string_literal
+          (string_fragment))))))
+
+==================
+Division still parses as binary
+==================
+
+a / b
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Unary minus on identifier
+==================
+
+-x
+
+---
+
+(source_file
+  (expression_statement
+    (unary_expression
+      operand: (identifier))))
+
+==================
+Unary plus on number
+==================
+
++42
+
+---
+
+(source_file
+  (expression_statement
+    (unary_expression
+      operand: (number_literal))))
+
+==================
+Logical not on boolean
+==================
+
+!true
+
+---
+
+(source_file
+  (expression_statement
+    (unary_expression
+      operand: (boolean_literal))))
+
+==================
+Bitwise complement
+==================
+
+~0xFF
+
+---
+
+(source_file
+  (expression_statement
+    (unary_expression
+      operand: (number_literal))))
+
+==================
+Stacked unary operators
+==================
+
+!~x
+
+---
+
+(source_file
+  (expression_statement
+    (unary_expression
+      operand: (unary_expression
+        operand: (identifier)))))
+
+==================
+Parenthesised identifier
+==================
+
+(x)
+
+---
+
+(source_file
+  (expression_statement
+    (parenthesized_expression
+      (identifier))))
+
+==================
+Parenthesised unary
+==================
+
+(-x)
+
+---
+
+(source_file
+  (expression_statement
+    (parenthesized_expression
+      (unary_expression
+        operand: (identifier)))))
+
+==================
+Nested parens
+==================
+
+(((x)))
+
+---
+
+(source_file
+  (expression_statement
+    (parenthesized_expression
+      (parenthesized_expression
+        (parenthesized_expression
+          (identifier))))))
+
+==================
+Postfix increment
+==================
+
+x++
+
+---
+
+(source_file
+  (expression_statement
+    (update_expression
+      operand: (identifier))))
+
+==================
+Postfix decrement
+==================
+
+x--
+
+---
+
+(source_file
+  (expression_statement
+    (update_expression
+      operand: (identifier))))
+
+==================
+Prefix increment
+==================
+
+++x
+
+---
+
+(source_file
+  (expression_statement
+    (unary_update_expression
+      operand: (identifier))))
+
+==================
+Prefix decrement
+==================
+
+--x
+
+---
+
+(source_file
+  (expression_statement
+    (unary_update_expression
+      operand: (identifier))))
+
+==================
+Postfix increment on subscript
+==================
+
+a[i]++
+
+---
+
+(source_file
+  (expression_statement
+    (update_expression
+      operand: (subscript_expression
+        object: (identifier)
+        index: (identifier)))))
+
+==================
+Postfix increment combined with binary
+==================
+
+x++ + y
+
+---
+
+(source_file
+  (expression_statement
+    (binary_expression
+      left: (update_expression
+        operand: (identifier))
+      right: (identifier))))
+
+==================
+Postfix increment passed as argument
+==================
+
+f(i++)
+
+---
+
+(source_file
+  (expression_statement
+    (method_invocation
+      function: (identifier)
+      arguments: (argument_list
+        (update_expression
+          operand: (identifier))))))

@@ -2,7 +2,36 @@
 
 use std::path::Path;
 
-use synaptic_core::{NodeId, make_id};
+pub(crate) use synaptic_core::file_node_id;
+
+/// Id-safe key for a symbol whose punctuation `make_id` would erase.
+///
+/// `make_id` maps every non-word character to `_` and collapses runs, so `sort!`,
+/// `sort?` and `sort` all normalize to one id. In Ruby, Elixir and Julia those are
+/// *different functions* (`Map.fetch` vs `Map.fetch!`, `valid?`, `push!`), and the
+/// collision silently deleted one of each pair from the graph. Appending a hex tag
+/// of the stripped punctuation keeps them distinct while leaving plain names
+/// untouched.
+pub(crate) fn symbol_key(name: &str) -> String {
+    let mut punctuation: String = name
+        .chars()
+        .filter(|c| !c.is_alphanumeric() && *c != '_')
+        .map(|c| format!("{:x}", c as u32))
+        .collect();
+    // `make_id` trims *and* collapses underscore runs, so the count has to be
+    // encoded, not merely flagged: easyasp ships `Search`, `Search_` and
+    // `Search__` side by side, and a flat marker collapses the last two.
+    let edge_underscores = (name.len() - name.trim_start_matches('_').len())
+        + (name.len() - name.trim_end_matches('_').len());
+    if edge_underscores > 0 {
+        punctuation.push_str(&format!("5f{edge_underscores}"));
+    }
+    if punctuation.is_empty() {
+        name.to_string()
+    } else {
+        format!("{name}_{punctuation}")
+    }
+}
 
 /// Extension-less path used to namespace symbol ids within a file. Keeping the
 /// full relative path avoids collisions between same-named files in parallel
@@ -11,11 +40,6 @@ pub(crate) fn file_stem(path: &str) -> String {
     let mut p = Path::new(path).to_path_buf();
     p.set_extension("");
     p.to_string_lossy().replace(['/', '\\'], ".")
-}
-
-/// File-node id derived from the file's path string via `make_id`.
-pub(crate) fn file_node_id(path: &str) -> NodeId {
-    NodeId(make_id(&[path]))
 }
 
 /// Lexically resolve `target` relative to the directory containing `from_file`,
@@ -83,8 +107,8 @@ mod tests {
     }
 
     #[test]
-    fn file_id_is_make_id_of_path() {
-        assert_eq!(file_node_id("pkg/mod.py").0, make_id(&["pkg/mod.py"]));
+    fn file_id_distinguishes_normalized_collisions() {
+        assert_ne!(file_node_id("pkg/mod.py"), file_node_id("pkg/mod_.py"));
     }
 
     #[cfg(any(feature = "lang-dotnet", feature = "lang-bash"))]

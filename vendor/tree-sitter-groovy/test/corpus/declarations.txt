@@ -1,0 +1,2194 @@
+==================
+Empty annotation type
+==================
+
+@interface Marker { }
+
+---
+
+(source_file
+  (annotation_type_declaration
+    name: (identifier)
+    body: (class_body)))
+
+==================
+Annotation type with one method
+==================
+
+@interface Foo {
+    def value()
+}
+
+---
+
+(source_file
+  (annotation_type_declaration
+    name: (identifier)
+    body: (class_body
+      (method_declaration
+        name: (identifier)
+        parameters: (formal_parameters)))))
+
+==================
+Annotation type with annotation on the type itself
+==================
+
+@Target
+@interface Foo { }
+
+---
+
+(source_file
+  (annotation_type_declaration
+    (annotation
+      name: (qualified_name (identifier)))
+    name: (identifier)
+    body: (class_body)))
+
+==================
+Bare annotation on class
+==================
+
+@Override
+class Foo { }
+
+---
+
+(source_file
+  (class_declaration
+    (annotation
+      name: (qualified_name (identifier)))
+    name: (identifier)
+    body: (class_body)))
+
+==================
+Annotation with string argument
+==================
+
+@SuppressWarnings("unchecked")
+class Foo { }
+
+---
+
+(source_file
+  (class_declaration
+    (annotation
+      name: (qualified_name (identifier))
+      arguments: (argument_list (string_literal (string_fragment))))
+    name: (identifier)
+    body: (class_body)))
+
+==================
+Annotation with named argument
+==================
+
+@Foo(key = "value")
+class Bar { }
+
+---
+
+(source_file
+  (class_declaration
+    (annotation
+      name: (qualified_name (identifier))
+      arguments: (argument_list
+        (assignment_expression
+          left: (identifier)
+          right: (string_literal (string_fragment)))))
+    name: (identifier)
+    body: (class_body)))
+
+==================
+Qualified-name annotation
+==================
+
+@a.b.Foo
+class Bar { }
+
+---
+
+(source_file
+  (class_declaration
+    (annotation
+      name: (qualified_name
+        (identifier)
+        (identifier)
+        (identifier)))
+    name: (identifier)
+    body: (class_body)))
+
+==================
+Stacked annotations on class
+==================
+
+@A
+@B
+class Foo { }
+
+---
+
+(source_file
+  (class_declaration
+    (annotation
+      name: (qualified_name (identifier)))
+    (annotation
+      name: (qualified_name (identifier)))
+    name: (identifier)
+    body: (class_body)))
+
+==================
+Annotation on method inside class
+==================
+
+class Foo {
+    @Override
+    def equals(other) { other }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (method_declaration
+        (annotation
+          name: (qualified_name (identifier)))
+        name: (identifier)
+        parameters: (formal_parameters
+          (formal_parameter name: (identifier)))
+        body: (block
+          (expression_statement (identifier)))))))
+
+==================
+Array-typed local variable
+==================
+
+int[] xs = empty
+
+---
+
+(source_file
+  (local_variable_declaration
+    type: (array_type
+      (type_identifier))
+    name: (identifier)
+    value: (identifier)))
+
+==================
+Two-dimensional array type
+==================
+
+String[][] grid = none
+
+---
+
+(source_file
+  (local_variable_declaration
+    type: (array_type
+      (array_type
+        (type_identifier)))
+    name: (identifier)
+    value: (identifier)))
+
+==================
+Array type in method parameter
+==================
+
+def first(int[] xs) { xs }
+
+---
+
+(source_file
+  (method_declaration
+    name: (identifier)
+    parameters: (formal_parameters
+      (formal_parameter
+        type: (array_type
+          (type_identifier))
+        name: (identifier)))
+    body: (block
+      (expression_statement (identifier)))))
+
+==================
+Array type in cast
+==================
+
+(int[]) x
+
+---
+
+(source_file
+  (expression_statement
+    (parenthesized_type_cast
+      type: (array_type
+        (type_identifier))
+      value: (identifier))))
+
+==================
+Array typed return method
+==================
+
+String[] names() { x }
+
+---
+
+(source_file
+  (method_declaration
+    return_type: (array_type
+      (type_identifier))
+    name: (identifier)
+    parameters: (formal_parameters)
+    body: (block
+      (expression_statement (identifier)))))
+
+==================
+Empty class
+==================
+
+class Foo { }
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body)))
+
+==================
+Class with one method
+==================
+
+class Foo {
+    def greet() { 'hello' }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (method_declaration
+        name: (identifier)
+        parameters: (formal_parameters)
+        body: (block
+          (expression_statement (string_literal)))))))
+
+==================
+Class with method taking parameters
+==================
+
+class Calc {
+    def add(a, b) { a }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (method_declaration
+        name: (identifier)
+        parameters: (formal_parameters
+          (formal_parameter name: (identifier))
+          (formal_parameter name: (identifier)))
+        body: (block
+          (expression_statement (identifier)))))))
+
+==================
+Class with typed parameters
+==================
+
+class Greeter {
+    def hi(String name) { name }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (method_declaration
+        name: (identifier)
+        parameters: (formal_parameters
+          (formal_parameter
+            type: (type_identifier)
+            name: (identifier)))
+        body: (block
+          (expression_statement (identifier)))))))
+
+==================
+Empty interface
+==================
+
+interface I { }
+
+---
+
+(source_file
+  (interface_declaration
+    name: (identifier)
+    body: (class_body)))
+
+==================
+Trait with method (dekobon #247 anchor)
+==================
+
+trait Greeter {
+    def greet() {
+        "hello"
+    }
+}
+
+---
+
+(source_file
+  (trait_declaration
+    name: (identifier)
+    body: (class_body
+      (method_declaration
+        name: (identifier)
+        parameters: (formal_parameters)
+        body: (block
+          (expression_statement (string_literal (string_fragment))))))))
+
+==================
+Class with multiple methods
+==================
+
+class Foo {
+    def a() { 1 }
+    def b() { 2 }
+    def c() { 3 }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (method_declaration
+        name: (identifier)
+        parameters: (formal_parameters)
+        body: (block (expression_statement (number_literal))))
+      (method_declaration
+        name: (identifier)
+        parameters: (formal_parameters)
+        body: (block (expression_statement (number_literal))))
+      (method_declaration
+        name: (identifier)
+        parameters: (formal_parameters)
+        body: (block (expression_statement (number_literal)))))))
+
+==================
+No-arg constructor
+==================
+
+class Foo {
+    Foo() { }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (constructor_declaration
+        name: (identifier)
+        parameters: (formal_parameters)
+        body: (block)))))
+
+==================
+Constructor with parameter
+==================
+
+class Foo {
+    Foo(String name) { }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (constructor_declaration
+        name: (identifier)
+        parameters: (formal_parameters
+          (formal_parameter
+            type: (type_identifier)
+            name: (identifier)))
+        body: (block)))))
+
+==================
+Constructor with modifiers and annotation
+==================
+
+class Foo {
+    @Inject
+    private Foo() { }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (constructor_declaration
+        (annotation
+          name: (qualified_name
+            (identifier)))
+        name: (identifier)
+        parameters: (formal_parameters)
+        body: (block)))))
+
+==================
+Constructor with throws clause
+==================
+
+class Foo {
+    Foo() throws IOException { }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (constructor_declaration
+        name: (identifier)
+        parameters: (formal_parameters)
+        (throws_clause
+          (type_identifier))
+        body: (block)))))
+
+==================
+Static initializer block
+==================
+
+class Foo {
+    static {
+        println "init"
+    }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (static_initializer
+        body: (block
+          (command_chain
+            receiver: (identifier)
+            argument: (string_literal (string_fragment))))))))
+
+==================
+Class with field, static init, and constructor
+==================
+
+class App {
+    String name = ""
+
+    static {
+        configure()
+    }
+
+    App() {
+        name = "x"
+    }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (field_declaration
+        type: (type_identifier)
+        (variable_declarator
+          name: (identifier)
+          value: (string_literal)))
+      (static_initializer
+        body: (block
+          (expression_statement
+            (method_invocation
+              function: (identifier)
+              arguments: (argument_list)))))
+      (constructor_declaration
+        name: (identifier)
+        parameters: (formal_parameters)
+        body: (block
+          (expression_statement
+            (assignment_expression
+              left: (identifier)
+              right: (string_literal (string_fragment)))))))))
+
+==================
+Empty enum
+==================
+
+enum E { }
+
+---
+
+(source_file
+  (enum_declaration
+    name: (identifier)
+    body: (enum_body)))
+
+==================
+Enum with constants
+==================
+
+enum Color { R, G, B }
+
+---
+
+(source_file
+  (enum_declaration
+    name: (identifier)
+    body: (enum_body
+      (enum_constant name: (identifier))
+      (enum_constant name: (identifier))
+      (enum_constant name: (identifier)))))
+
+==================
+Enum with trailing comma
+==================
+
+enum Color { R, G, B, }
+
+---
+
+(source_file
+  (enum_declaration
+    name: (identifier)
+    body: (enum_body
+      (enum_constant name: (identifier))
+      (enum_constant name: (identifier))
+      (enum_constant name: (identifier)))))
+
+==================
+Enum constants with constructor args
+==================
+
+enum Code { RED(0xff0000), GREEN(0x00ff00) }
+
+---
+
+(source_file
+  (enum_declaration
+    name: (identifier)
+    body: (enum_body
+      (enum_constant
+        name: (identifier)
+        arguments: (argument_list (number_literal)))
+      (enum_constant
+        name: (identifier)
+        arguments: (argument_list (number_literal))))))
+
+==================
+Enum with methods after semicolon
+==================
+
+enum E { A, B; def f() { 1 } }
+
+---
+
+(source_file
+  (enum_declaration
+    name: (identifier)
+    body: (enum_body
+      (enum_constant name: (identifier))
+      (enum_constant name: (identifier))
+      (method_declaration
+        name: (identifier)
+        parameters: (formal_parameters)
+        body: (block (expression_statement (number_literal)))))))
+
+==================
+Untyped def field with initializer
+==================
+
+class C {
+    def name = "hi"
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (field_declaration
+        (variable_declarator
+          name: (identifier)
+          value: (string_literal (string_fragment)))))))
+
+==================
+Typed field with no initializer
+==================
+
+class C {
+    String name
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (field_declaration
+        type: (type_identifier)
+        (variable_declarator
+          name: (identifier))))))
+
+==================
+Typed field with initializer
+==================
+
+class C {
+    int age = 10
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (field_declaration
+        type: (type_identifier)
+        (variable_declarator
+          name: (identifier)
+          value: (number_literal))))))
+
+==================
+Generic typed field
+==================
+
+class C {
+    List<String> items = []
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (field_declaration
+        type: (generic_type
+          base: (type_identifier)
+          arguments: (type_arguments
+            (type_identifier)))
+        (variable_declarator
+          name: (identifier)
+          value: (list_literal))))))
+
+==================
+Multiple field declarators on one line
+==================
+
+class C {
+    int a = 1, b = 2
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (field_declaration
+        type: (type_identifier)
+        (variable_declarator
+          name: (identifier)
+          value: (number_literal))
+        (variable_declarator
+          name: (identifier)
+          value: (number_literal))))))
+
+==================
+Field with modifier
+==================
+
+class C {
+    private final String name = "x"
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (field_declaration
+        type: (type_identifier)
+        (variable_declarator
+          name: (identifier)
+          value: (string_literal (string_fragment)))))))
+
+==================
+Field with annotation
+==================
+
+class C {
+    @Deprecated
+    String old = "x"
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (field_declaration
+        (annotation
+          name: (qualified_name
+            (identifier)))
+        type: (type_identifier)
+        (variable_declarator
+          name: (identifier)
+          value: (string_literal (string_fragment)))))))
+
+==================
+Mix of fields and methods in class body
+==================
+
+class Person {
+    String name
+    int age = 0
+
+    def greet() { "hi" }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (field_declaration
+        type: (type_identifier)
+        (variable_declarator
+          name: (identifier)))
+      (field_declaration
+        type: (type_identifier)
+        (variable_declarator
+          name: (identifier)
+          value: (number_literal)))
+      (method_declaration
+        name: (identifier)
+        parameters: (formal_parameters)
+        body: (block
+          (expression_statement
+            (string_literal (string_fragment))))))))
+
+==================
+Simple generic type in variable declaration
+==================
+
+List<String> items = []
+
+---
+
+(source_file
+  (local_variable_declaration
+    type: (generic_type
+      base: (type_identifier)
+      arguments: (type_arguments
+        (type_identifier)))
+    name: (identifier)
+    value: (list_literal)))
+
+==================
+Generic type with multiple arguments
+==================
+
+Map<String, Integer> counts = [:]
+
+---
+
+(source_file
+  (local_variable_declaration
+    type: (generic_type
+      base: (type_identifier)
+      arguments: (type_arguments
+        (type_identifier)
+        (type_identifier)))
+    name: (identifier)
+    value: (map_literal)))
+
+==================
+Nested generic type
+==================
+
+Map<String, List<Integer>> m = [:]
+
+---
+
+(source_file
+  (local_variable_declaration
+    type: (generic_type
+      base: (type_identifier)
+      arguments: (type_arguments
+        (type_identifier)
+        (generic_type
+          base: (type_identifier)
+          arguments: (type_arguments
+            (type_identifier)))))
+    name: (identifier)
+    value: (map_literal)))
+
+==================
+Wildcard type argument
+==================
+
+List<?> any = []
+
+---
+
+(source_file
+  (local_variable_declaration
+    type: (generic_type
+      base: (type_identifier)
+      arguments: (type_arguments
+        (wildcard)))
+    name: (identifier)
+    value: (list_literal)))
+
+==================
+Bounded wildcard with extends
+==================
+
+List<? extends Number> nums = []
+
+---
+
+(source_file
+  (local_variable_declaration
+    type: (generic_type
+      base: (type_identifier)
+      arguments: (type_arguments
+        (wildcard
+          (type_identifier))))
+    name: (identifier)
+    value: (list_literal)))
+
+==================
+Bounded wildcard with super
+==================
+
+List<? super Integer> sup = []
+
+---
+
+(source_file
+  (local_variable_declaration
+    type: (generic_type
+      base: (type_identifier)
+      arguments: (type_arguments
+        (wildcard
+          (type_identifier))))
+    name: (identifier)
+    value: (list_literal)))
+
+==================
+Generic type with qualified base
+==================
+
+java.util.List<String> qual = []
+
+---
+
+(source_file
+  (local_variable_declaration
+    type: (generic_type
+      base: (qualified_type
+        (type_identifier)
+        (type_identifier)
+        (type_identifier))
+      arguments: (type_arguments
+        (type_identifier)))
+    name: (identifier)
+    value: (list_literal)))
+
+==================
+Generic type in parenthesized cast
+==================
+
+def x = (List<String>) obj
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (parenthesized_type_cast
+        type: (generic_type
+          base: (type_identifier)
+          arguments: (type_arguments
+            (type_identifier)))
+        value: (identifier)))))
+
+==================
+Generic type in method return type
+==================
+
+List<String> greet() { return [] }
+
+---
+
+(source_file
+  (method_declaration
+    return_type: (generic_type
+      base: (type_identifier)
+      arguments: (type_arguments
+        (type_identifier)))
+    name: (identifier)
+    parameters: (formal_parameters)
+    body: (block
+      (return_statement
+        (list_literal)))))
+
+==================
+Generic type in formal parameter
+==================
+
+def f(List<String> items) { items }
+
+---
+
+(source_file
+  (method_declaration
+    name: (identifier)
+    parameters: (formal_parameters
+      (formal_parameter
+        type: (generic_type
+          base: (type_identifier)
+          arguments: (type_arguments
+            (type_identifier)))
+        name: (identifier)))
+    body: (block
+      (expression_statement
+        (identifier)))))
+
+==================
+Generic type as object creation type
+==================
+
+def x = new ArrayList<String>()
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (object_creation_expression
+        type: (generic_type
+          base: (type_identifier)
+          arguments: (type_arguments
+            (type_identifier)))
+        arguments: (argument_list)))))
+
+==================
+Class with single type parameter
+==================
+
+class Box<T> {}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier)))
+    body: (class_body)))
+
+==================
+Class with bounded type parameter
+==================
+
+class Sorter<T extends Comparable<T>> {}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier)
+        (generic_type
+          base: (type_identifier)
+          arguments: (type_arguments
+            (type_identifier)))))
+    body: (class_body)))
+
+==================
+Class with multiple type parameters
+==================
+
+class Pair<K, V> {}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier))
+      (type_parameter
+        name: (type_identifier)))
+    body: (class_body)))
+
+==================
+Interface with type parameter
+==================
+
+interface Holder<T> {}
+
+---
+
+(source_file
+  (interface_declaration
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier)))
+    body: (class_body)))
+
+==================
+Trait with type parameter
+==================
+
+trait Boxable<T> {}
+
+---
+
+(source_file
+  (trait_declaration
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier)))
+    body: (class_body)))
+
+==================
+Method-level generic type parameter
+==================
+
+class Util {
+    static <T> T identity(T x) { x }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (method_declaration
+        type_parameters: (method_type_parameters
+          (type_parameter
+            name: (type_identifier)))
+        return_type: (type_identifier)
+        name: (identifier)
+        parameters: (formal_parameters
+          (formal_parameter
+            type: (type_identifier)
+            name: (identifier)))
+        body: (block
+          (expression_statement
+            (identifier)))))))
+
+==================
+Method-level multi-bound type parameter
+==================
+
+class Util {
+    static <T extends Number & Comparable> T pick(T a) { a }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (method_declaration
+        type_parameters: (method_type_parameters
+          (type_parameter
+            name: (type_identifier)
+            (type_identifier)
+            (type_identifier)))
+        return_type: (type_identifier)
+        name: (identifier)
+        parameters: (formal_parameters
+          (formal_parameter
+            type: (type_identifier)
+            name: (identifier)))
+        body: (block
+          (expression_statement
+            (identifier)))))))
+
+==================
+Class extends superclass
+==================
+
+class Sub extends Super { }
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    (superclass
+      (type_identifier))
+    body: (class_body)))
+
+==================
+Class implements single interface
+==================
+
+class Foo implements Comparable { }
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    (super_interfaces
+      (type_identifier))
+    body: (class_body)))
+
+==================
+Class implements multiple interfaces
+==================
+
+class Foo implements A, B, C { }
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    (super_interfaces
+      (type_identifier)
+      (type_identifier)
+      (type_identifier))
+    body: (class_body)))
+
+==================
+Class extends and implements
+==================
+
+class Sub extends Super implements I, J { }
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    (superclass
+      (type_identifier))
+    (super_interfaces
+      (type_identifier)
+      (type_identifier))
+    body: (class_body)))
+
+==================
+Interface extends multiple
+==================
+
+interface I extends A, B { }
+
+---
+
+(source_file
+  (interface_declaration
+    name: (identifier)
+    (extends_interfaces
+      (type_identifier)
+      (type_identifier))
+    body: (class_body)))
+
+==================
+Trait extends single interface
+==================
+
+trait T extends Other { }
+
+---
+
+(source_file
+  (trait_declaration
+    name: (identifier)
+    (extends_interfaces
+      (type_identifier))
+    body: (class_body)))
+
+==================
+Sealed class permits with extends
+==================
+
+sealed class S extends Base permits A, B { }
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    (superclass
+      (type_identifier))
+    (permits_clause
+      (type_identifier)
+      (type_identifier))
+    body: (class_body)))
+
+==================
+Public abstract class with extends
+==================
+
+public abstract class A extends B implements I { }
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    (superclass
+      (type_identifier))
+    (super_interfaces
+      (type_identifier))
+    body: (class_body)))
+
+==================
+Method with throws clause
+==================
+
+def risky() throws IOException { foo() }
+
+---
+
+(source_file
+  (method_declaration
+    name: (identifier)
+    parameters: (formal_parameters)
+    (throws_clause
+      (type_identifier))
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))))
+
+==================
+Method with multi-throw
+==================
+
+def risky() throws IOException, SQLException { foo() }
+
+---
+
+(source_file
+  (method_declaration
+    name: (identifier)
+    parameters: (formal_parameters)
+    (throws_clause
+      (type_identifier)
+      (type_identifier))
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))))
+
+==================
+Parameter with default value
+==================
+
+def greet(name = 'world') { name }
+
+---
+
+(source_file
+  (method_declaration
+    name: (identifier)
+    parameters: (formal_parameters
+      (formal_parameter
+        name: (identifier)
+        default: (string_literal)))
+    body: (block
+      (expression_statement (identifier)))))
+
+==================
+Parameter with type and default
+==================
+
+def f(String s = 'hi') { s }
+
+---
+
+(source_file
+  (method_declaration
+    name: (identifier)
+    parameters: (formal_parameters
+      (formal_parameter
+        type: (type_identifier)
+        name: (identifier)
+        default: (string_literal)))
+    body: (block
+      (expression_statement (identifier)))))
+
+==================
+Mixed positional and defaulted parameters
+==================
+
+def f(a, b = 2, c = 3) { a }
+
+---
+
+(source_file
+  (method_declaration
+    name: (identifier)
+    parameters: (formal_parameters
+      (formal_parameter name: (identifier))
+      (formal_parameter
+        name: (identifier)
+        default: (number_literal))
+      (formal_parameter
+        name: (identifier)
+        default: (number_literal)))
+    body: (block
+      (expression_statement (identifier)))))
+
+==================
+Varargs parameter
+==================
+
+def collect(String... args) { args }
+
+---
+
+(source_file
+  (method_declaration
+    name: (identifier)
+    parameters: (formal_parameters
+      (formal_parameter
+        type: (varargs_type
+          (type_identifier))
+        name: (identifier)))
+    body: (block
+      (expression_statement (identifier)))))
+
+==================
+Method with throws and varargs
+==================
+
+def fmt(String fmt, Object... args) throws Exception { fmt }
+
+---
+
+(source_file
+  (method_declaration
+    name: (identifier)
+    parameters: (formal_parameters
+      (formal_parameter
+        type: (type_identifier)
+        name: (identifier))
+      (formal_parameter
+        type: (varargs_type
+          (type_identifier))
+        name: (identifier)))
+    (throws_clause
+      (type_identifier))
+    body: (block
+      (expression_statement (identifier)))))
+
+==================
+Typed return method
+==================
+
+String greet() { 'hi' }
+
+---
+
+(source_file
+  (method_declaration
+    return_type: (type_identifier)
+    name: (identifier)
+    parameters: (formal_parameters)
+    body: (block
+      (expression_statement (string_literal)))))
+
+==================
+Typed return with typed parameters
+==================
+
+int add(int a, int b) { a + b }
+
+---
+
+(source_file
+  (method_declaration
+    return_type: (type_identifier)
+    name: (identifier)
+    parameters: (formal_parameters
+      (formal_parameter type: (type_identifier) name: (identifier))
+      (formal_parameter type: (type_identifier) name: (identifier)))
+    body: (block
+      (expression_statement
+        (binary_expression
+          left: (identifier)
+          right: (identifier))))))
+
+==================
+Typed-return abstract method (no body)
+==================
+
+interface I {
+    String name()
+    int count()
+}
+
+---
+
+(source_file
+  (interface_declaration
+    name: (identifier)
+    body: (class_body
+      (method_declaration
+        return_type: (type_identifier)
+        name: (identifier)
+        parameters: (formal_parameters))
+      (method_declaration
+        return_type: (type_identifier)
+        name: (identifier)
+        parameters: (formal_parameters)))))
+
+==================
+Typed-return method with throws
+==================
+
+void doIt() throws Exception { foo() }
+
+---
+
+(source_file
+  (method_declaration
+    return_type: (type_identifier)
+    name: (identifier)
+    parameters: (formal_parameters)
+    (throws_clause
+      (type_identifier))
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list))))))
+
+==================
+Public class
+==================
+
+public class Foo { }
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body)))
+
+==================
+Abstract class
+==================
+
+abstract class Shape { }
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body)))
+
+==================
+Public final class
+==================
+
+public final class Foo { }
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body)))
+
+==================
+Static def method
+==================
+
+class C {
+    static def helper() { 1 }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (method_declaration
+        name: (identifier)
+        parameters: (formal_parameters)
+        body: (block
+          (expression_statement (number_literal)))))))
+
+==================
+Private final method with type
+==================
+
+class C {
+    private final String name() { 'x' }
+}
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body
+      (method_declaration
+        return_type: (type_identifier)
+        name: (identifier)
+        parameters: (formal_parameters)
+        body: (block
+          (expression_statement (string_literal)))))))
+
+==================
+Public static void main
+==================
+
+public static void main(String[] args) { foo(args) }
+
+---
+
+(source_file
+  (method_declaration
+    return_type: (type_identifier)
+    name: (identifier)
+    parameters: (formal_parameters
+      (formal_parameter
+        type: (array_type
+          (type_identifier))
+        name: (identifier)))
+    body: (block
+      (expression_statement
+        (method_invocation
+          function: (identifier)
+          arguments: (argument_list (identifier)))))))
+
+==================
+Modifiers after annotations
+==================
+
+@Override
+public final String toString() { name }
+
+---
+
+(source_file
+  (method_declaration
+    (annotation
+      name: (qualified_name (identifier)))
+    return_type: (type_identifier)
+    name: (identifier)
+    parameters: (formal_parameters)
+    body: (block
+      (expression_statement (identifier)))))
+
+==================
+Package declaration
+==================
+
+package com.example
+
+---
+
+(source_file
+  (package_declaration
+    name: (qualified_name
+      (identifier)
+      (identifier))))
+
+==================
+Single import
+==================
+
+import java.util.List
+
+---
+
+(source_file
+  (import_declaration
+    name: (qualified_name
+      (identifier)
+      (identifier)
+      (identifier))))
+
+==================
+Wildcard import
+==================
+
+import java.util.*
+
+---
+
+(source_file
+  (import_declaration
+    name: (qualified_name
+      (identifier)
+      (identifier))))
+
+==================
+Static import
+==================
+
+import static java.util.Arrays.asList
+
+---
+
+(source_file
+  (import_declaration
+    name: (qualified_name
+      (identifier)
+      (identifier)
+      (identifier)
+      (identifier))))
+
+==================
+Static wildcard import
+==================
+
+import static java.lang.Math.*
+
+---
+
+(source_file
+  (import_declaration
+    name: (qualified_name
+      (identifier)
+      (identifier)
+      (identifier))))
+
+==================
+Aliased import
+==================
+
+import com.foo.Bar as Baz
+
+---
+
+(source_file
+  (import_declaration
+    name: (qualified_name
+      (identifier)
+      (identifier)
+      (identifier))
+    alias: (identifier)))
+
+==================
+Multiple imports
+==================
+
+import java.util.List
+import java.util.Map
+
+---
+
+(source_file
+  (import_declaration
+    name: (qualified_name
+      (identifier)
+      (identifier)
+      (identifier)))
+  (import_declaration
+    name: (qualified_name
+      (identifier)
+      (identifier)
+      (identifier))))
+
+==================
+Package and import
+==================
+
+package com.example
+import java.util.List
+
+class Foo { }
+
+---
+
+(source_file
+  (package_declaration
+    name: (qualified_name
+      (identifier)
+      (identifier)))
+  (import_declaration
+    name: (qualified_name
+      (identifier)
+      (identifier)
+      (identifier)))
+  (class_declaration
+    name: (identifier)
+    body: (class_body)))
+
+==================
+Qualified type in cast
+==================
+
+(java.util.List) x
+
+---
+
+(source_file
+  (expression_statement
+    (parenthesized_type_cast
+      type: (qualified_type
+        (type_identifier)
+        (type_identifier)
+        (type_identifier))
+      value: (identifier))))
+
+==================
+Array of qualified type
+==================
+
+(java.util.List[]) x
+
+---
+
+(source_file
+  (expression_statement
+    (parenthesized_type_cast
+      type: (array_type
+        (qualified_type
+          (type_identifier)
+          (type_identifier)
+          (type_identifier)))
+      value: (identifier))))
+
+==================
+Qualified-type parameter in method
+==================
+
+def consume(java.util.List xs) { xs }
+
+---
+
+(source_file
+  (method_declaration
+    name: (identifier)
+    parameters: (formal_parameters
+      (formal_parameter
+        type: (qualified_type
+          (type_identifier)
+          (type_identifier)
+          (type_identifier))
+        name: (identifier)))
+    body: (block
+      (expression_statement (identifier)))))
+
+==================
+Record no components
+==================
+
+record R()
+
+---
+
+(source_file
+  (record_declaration
+    name: (identifier)
+    components: (record_components)))
+
+==================
+Record with one component
+==================
+
+record Point(int x)
+
+---
+
+(source_file
+  (record_declaration
+    name: (identifier)
+    components: (record_components
+      (record_component
+        type: (type_identifier)
+        name: (identifier)))))
+
+==================
+Record with multiple components
+==================
+
+record Point(int x, int y)
+
+---
+
+(source_file
+  (record_declaration
+    name: (identifier)
+    components: (record_components
+      (record_component
+        type: (type_identifier)
+        name: (identifier))
+      (record_component
+        type: (type_identifier)
+        name: (identifier)))))
+
+==================
+Record with body
+==================
+
+record Point(int x, int y) {
+    def manhattan() { x }
+}
+
+---
+
+(source_file
+  (record_declaration
+    name: (identifier)
+    components: (record_components
+      (record_component
+        type: (type_identifier)
+        name: (identifier))
+      (record_component
+        type: (type_identifier)
+        name: (identifier)))
+    body: (class_body
+      (method_declaration
+        name: (identifier)
+        parameters: (formal_parameters)
+        body: (block
+          (expression_statement (identifier)))))))
+
+==================
+Sealed class
+==================
+
+sealed class Shape { }
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body)))
+
+==================
+Sealed class with permits
+==================
+
+sealed class Shape permits Circle, Square { }
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    (permits_clause
+      (type_identifier)
+      (type_identifier))
+    body: (class_body)))
+
+==================
+Non-sealed class
+==================
+
+non-sealed class Circle { }
+
+---
+
+(source_file
+  (class_declaration
+    name: (identifier)
+    body: (class_body)))
+
+==================
+Sealed interface
+==================
+
+sealed interface I permits A, B { }
+
+---
+
+(source_file
+  (interface_declaration
+    name: (identifier)
+    (permits_clause
+      (type_identifier)
+      (type_identifier))
+    body: (class_body)))
+
+==================
+Sealed trait
+==================
+
+sealed trait T permits A { }
+
+---
+
+(source_file
+  (trait_declaration
+    name: (identifier)
+    (permits_clause
+      (type_identifier))
+    body: (class_body)))
+
+==================
+Shebang only
+==================
+
+#!/usr/bin/env groovy
+
+---
+
+(source_file
+  (shebang))
+
+==================
+Shebang plus code
+==================
+
+#!/usr/bin/env groovy
+def x = 5
+
+---
+
+(source_file
+  (shebang)
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (number_literal))))
+
+==================
+Code with no shebang still parses
+==================
+
+def x = 5
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (number_literal))))
+
+==================
+def variable with initializer
+==================
+
+def x = 5
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (number_literal))))
+
+==================
+var variable with initializer
+==================
+
+var y = 'hello'
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (string_literal))))
+
+==================
+def with no initializer
+==================
+
+def x
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier))))
+
+==================
+def multiple variables on one line
+==================
+
+def a = 1, b = 2
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (number_literal))
+    (variable_declarator
+      name: (identifier)
+      value: (number_literal))))
+
+==================
+def with expression initializer
+==================
+
+def total = a + b * c
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (binary_expression
+        left: (identifier)
+        right: (binary_expression
+          left: (identifier)
+          right: (identifier))))))
+
+==================
+def with closure initializer
+==================
+
+def f = { x -> x }
+
+---
+
+(source_file
+  (local_variable_declaration
+    (variable_declarator
+      name: (identifier)
+      value: (closure
+        (closure_parameters
+          (closure_parameter name: (identifier)))
+        (expression_statement (identifier))))))
+
+==================
+Multi-assignment (murtaza64 #22 anchor)
+==================
+
+def (a, b) = [1, 2]
+
+---
+
+(source_file
+  (multi_assignment_declaration
+    (variable_declarator name: (identifier))
+    (variable_declarator name: (identifier))
+    value: (list_literal
+      (number_literal)
+      (number_literal))))
+
+==================
+Multi-assignment three variables
+==================
+
+def (a, b, c) = source
+
+---
+
+(source_file
+  (multi_assignment_declaration
+    (variable_declarator name: (identifier))
+    (variable_declarator name: (identifier))
+    (variable_declarator name: (identifier))
+    value: (identifier)))
+
+==================
+Typed local variable declaration
+==================
+
+String name = 'Groovy'
+
+---
+
+(source_file
+  (local_variable_declaration
+    type: (type_identifier)
+    name: (identifier)
+    value: (string_literal)))
+
+==================
+Typed local variable with integer
+==================
+
+int count = 42
+
+---
+
+(source_file
+  (local_variable_declaration
+    type: (type_identifier)
+    name: (identifier)
+    value: (number_literal)))
+
+==================
+Typed local variable with expression init
+==================
+
+long total = a + b
+
+---
+
+(source_file
+  (local_variable_declaration
+    type: (type_identifier)
+    name: (identifier)
+    value: (binary_expression
+      left: (identifier)
+      right: (identifier))))
+
+==================
+Typed multi-declarator
+==================
+
+int x = 1, y = 2
+
+---
+
+(source_file
+  (local_variable_declaration
+    type: (type_identifier)
+    name: (identifier)
+    value: (number_literal)
+    name: (identifier)
+    value: (number_literal)))

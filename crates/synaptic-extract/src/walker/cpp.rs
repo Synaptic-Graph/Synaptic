@@ -6,6 +6,53 @@ use synaptic_core::{NodeId, make_id};
 use tree_sitter::Node as TsNode;
 
 impl<'tree> Extractor<'_, '_, 'tree> {
+    /// Typedef declarators can be pointers, arrays, or function pointers, and
+    /// there can be several in one declaration. Their names are the anchors.
+    pub(crate) fn cpp_type_aliases(&mut self, node: TsNode<'tree>, owner: &NodeId, stem: &str) {
+        let mut cursor = node.walk();
+        let names: Vec<_> = if node.kind() == "alias_declaration" {
+            node.child_by_field_name("name").into_iter().collect()
+        } else {
+            node.children_by_field_name("declarator", &mut cursor)
+                .filter_map(|declarator| Self::declarator_name(declarator, 0))
+                .collect()
+        };
+        for name in names {
+            let label = self.text(name);
+            if node
+                .child_by_field_name("type")
+                .filter(|ty| self.body_of(*ty).is_some())
+                .and_then(|ty| ty.child_by_field_name("name"))
+                .is_some_and(|tag| self.text(tag) == label)
+            {
+                continue; // `typedef struct S {...} S` is represented by S's definition.
+            }
+            let nid = NodeId(make_id(&[owner.as_str(), &label]));
+            self.add_code_node(
+                nid.clone(),
+                label,
+                name,
+                synaptic_core::NodeKind::TypeAlias,
+                None,
+                None,
+            );
+            self.add_edge(
+                owner.clone(),
+                nid.clone(),
+                "contains",
+                Self::line(name),
+                None,
+            );
+            self.cpp_type_refs(node, &nid, stem, Self::line(name));
+            if let Some(body) = node
+                .child_by_field_name("type")
+                .and_then(|ty| self.body_of(ty))
+            {
+                self.cpp_class_members(body, &nid, stem);
+            }
+        }
+    }
+
     /// C++ class body: `field_declaration` with a `function_declarator` →
     /// a method-prototype node (+ its param/return refs); a data-member
     /// `field_declaration` → its `type` as `references` (ctx `field`).
@@ -20,9 +67,10 @@ impl<'tree> Extractor<'_, '_, 'tree> {
                 continue;
             }
             let line = Self::line(child);
-            if self
-                .c_function_declarator(child)
-                .is_some_and(|declarator| !self.text(declarator).contains("::*"))
+            if self.cfg.heritage_style == Some(crate::config::HeritageStyle::Cpp)
+                && self
+                    .c_function_declarator(child)
+                    .is_some_and(|declarator| !self.text(declarator).contains("::*"))
             {
                 let Some(name) = self.function_name(child) else {
                     continue;

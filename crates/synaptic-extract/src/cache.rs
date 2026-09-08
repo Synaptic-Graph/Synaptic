@@ -32,6 +32,15 @@ fn cache_key(path: &str, source: &[u8]) -> String {
     h.update(path.as_bytes());
     h.update(&[0]); // separator so (path, content) can't be ambiguous
     h.update(source);
+    #[cfg(feature = "lang-fortran")]
+    if Path::new(path)
+        .extension()
+        .and_then(|s| s.to_str())
+        .is_some_and(|ext| matches!(ext.to_ascii_lowercase().as_str(), "f" | "for"))
+    {
+        h.update(b"\x01fortran-fixed-line-length");
+        h.update(&(crate::fortran::fixed_line_length() as u64).to_le_bytes());
+    }
     // --no-columns changes the SQL output for the same bytes, so it must change
     // the key. Only perturb in the off (non-default) case, leaving every
     // existing default-mode entry valid.

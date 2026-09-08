@@ -51,7 +51,9 @@ impl<'tree> Extractor<'_, '_, 'tree> {
     fn java_base_head(&self, t: TsNode<'tree>) -> Option<String> {
         match t.kind() {
             "type_identifier" => Some(self.text(t)),
-            "scoped_type_identifier" => self.text(t).rsplit('.').next().map(str::to_string),
+            "scoped_type_identifier" | "qualified_type" => {
+                self.text(t).rsplit('.').next().map(str::to_string)
+            }
             "generic_type" => Self::children(t)
                 .into_iter()
                 .find_map(|c| self.java_base_head(c)),
@@ -85,7 +87,10 @@ impl<'tree> Extractor<'_, '_, 'tree> {
         }
         // `method_declaration`'s `type` field is the return type (constructors
         // have none).
-        if let Some(ret) = func_node.child_by_field_name("type") {
+        if let Some(ret) = func_node
+            .child_by_field_name("type")
+            .or_else(|| func_node.child_by_field_name("return_type"))
+        {
             let mut out = Vec::new();
             self.collect_java_type_refs(ret, false, &mut out);
             for (n, g) in out {
@@ -104,12 +109,10 @@ impl<'tree> Extractor<'_, '_, 'tree> {
     /// `@Test`). Qualified names keep their tail.
     pub(crate) fn java_annotation_names(&self, method_node: TsNode<'tree>) -> Vec<String> {
         let mut names = Vec::new();
-        let Some(modifiers) = Self::children(method_node)
+        let modifiers = Self::children(method_node)
             .into_iter()
             .find(|c| c.kind() == "modifiers")
-        else {
-            return names;
-        };
+            .unwrap_or(method_node);
         for anno in Self::children(modifiers) {
             if !matches!(anno.kind(), "marker_annotation" | "annotation") {
                 continue;
@@ -150,7 +153,7 @@ impl<'tree> Extractor<'_, '_, 'tree> {
                     out.push((t, generic));
                 }
             }
-            "scoped_type_identifier" => {
+            "scoped_type_identifier" | "qualified_type" => {
                 if let Some(tail) = self.text(node).rsplit('.').next()
                     && !tail.is_empty()
                 {

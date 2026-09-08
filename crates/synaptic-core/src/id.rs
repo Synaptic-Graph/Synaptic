@@ -53,9 +53,28 @@ pub fn make_id(parts: &[&str]) -> String {
     default_case_fold_str(cleaned.trim_matches('_'))
 }
 
+/// File paths are case- and punctuation-sensitive identities, unlike labels.
+/// Append a stable FNV-1a fingerprint so normalization cannot merge sibling files.
+pub fn file_node_id(path: &str) -> NodeId {
+    let path = path.replace('\\', "/");
+    let hash = path.bytes().fold(0xcbf29ce484222325u64, |hash, byte| {
+        (hash ^ u64::from(byte)).wrapping_mul(0x100000001b3)
+    });
+    NodeId(format!("{}_path_{hash:016x}", make_id(&[&path])))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn file_identity_preserves_path_spelling() {
+        for other in ["ETIME_.f", "etime.f", "ETIME-f", "ETIME/f"] {
+            assert_ne!(file_node_id("ETIME.f"), file_node_id(other));
+        }
+        assert_eq!(file_node_id("src\\ETIME.f"), file_node_id("src/ETIME.f"));
+        assert_eq!(file_node_id("ETIME.f"), file_node_id("ETIME.f"));
+    }
 
     #[test]
     fn strips_dots_and_underscores() {

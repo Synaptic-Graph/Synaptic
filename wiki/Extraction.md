@@ -206,6 +206,43 @@ above 150,000 nodes: they are unusable at that size and were producing
 multi-hundred-megabyte files. `graph.json` and the store are always written. See
 [Output-Formats].
 
+## Compiler-assisted extraction
+
+C, C++ and Fortran projects can supply `compile_commands.json` at the project
+root or under `build/`, or set `SYNAPTIC_COMPILE_COMMANDS` to its path. Synaptic
+reads preprocessing and dialect flags as data and invokes `gcc` or `gfortran`
+for preprocessing. `SYNAPTIC_NATIVE_COMPILER` and `SYNAPTIC_FORTRAN_COMPILER`
+select compatible drivers. The compilation database's shell command is never
+executed. Missing inputs or failed preprocessing retain the source graph with a
+build diagnostic. Conflicting compilation entries require choosing one active
+build configuration.
+
+For CMake target and dependency information, create an empty
+`<build>/.cmake/api/v1/query/codemodel-v2` before configuring CMake. Synaptic
+reads the reply beside the compilation database. Headers listed by a target
+inherit a real translation unit's flags and include context. Line anchors refer
+to the original source; expanded columns refer to preprocessed text.
+
+Groovy projects can export methods and resolved calls using their own compiler
+and dependency classpath:
+
+```sh
+groovy scripts/export-groovy-facts.groovy ROOT OUTPUT SOURCE_LIST [CLASSPATH]
+```
+
+The exporter is in the Synaptic source repository. `SOURCE_LIST` contains one
+root-relative path per line. Write `OUTPUT` to
+`ROOT/.synaptic/compiler-facts.json`, or set `SYNAPTIC_COMPILER_FACTS` to its
+path. Export runs through class generation, including AST transforms, without
+invoking application methods. Changed sources or classpath metadata invalidate
+the imported facts. Generated methods retain compiler provenance; unresolved
+dynamic calls remain explicit uncertainty.
+
+Build-configured incremental updates rebuild conservatively to refresh included
+headers, flags and compiler facts. Ordinary Fortran updates follow reverse
+module and call dependencies. See [Configuration](Configuration) for the
+environment variables.
+
 ## The AST cache
 
 Extraction uses an on-disk per-file cache so an unchanged file skips re-parsing

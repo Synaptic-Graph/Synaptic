@@ -48,6 +48,9 @@ pub fn bare_name(label: &str) -> Option<&str> {
     // Qualifier and callable decoration the extractors add, not source text.
     let s = s.strip_prefix('.').unwrap_or(s);
     let s = s.strip_suffix("()").unwrap_or(s);
+    if s.starts_with("operator") {
+        return Some(s); // `operator()`, `operator<`, and conversion types are names.
+    }
     // Split only on argument/generic openers. `[` is deliberately not a
     // separator: a Ruby operator method is labeled `[]` and a changelog heading
     // is labeled `[0.1] 2007-03-03`, and both are the text to look for.
@@ -121,6 +124,11 @@ pub fn anchor_matches(label: &str, line: &str, case_folds: bool) -> bool {
     };
     if line.contains(name) {
         return true;
+    }
+    if name.starts_with("operator") {
+        return line
+            .replace(char::is_whitespace, "")
+            .contains(&name.replace(char::is_whitespace, ""));
     }
     case_folds
         && line
@@ -199,6 +207,161 @@ fn bracket_delta(line: &str) -> i32 {
 /// How far past its anchor a declaration's leading annotation block may run.
 const MAX_LEADING_MATTER_LINES: usize = 256;
 
+/// Remove comment text from code-anchor evidence, retaining a leading-matter
+/// marker on comment-only lines. Rationale/document nodes use the original text.
+fn code_anchor_lines(lines: &[String], path: &str) -> Vec<String> {
+    let extension = Path::new(path)
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if matches!(extension.as_str(), "js" | "jsx" | "mjs" | "cjs") {
+        // Regex literals can contain quotes and comment-looking text. Reuse the
+        // language lexer rather than interpreting minified JavaScript as C.
+        let source = lines.join("\n");
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(&tree_sitter_javascript::LANGUAGE.into())
+            .expect("JavaScript grammar");
+        if let Some(tree) = parser.parse(&source, None) {
+            let mut code = source.as_bytes().to_vec();
+            let mut stack = vec![tree.root_node()];
+            while let Some(node) = stack.pop() {
+                if node.kind() == "comment" {
+                    for byte in &mut code[node.byte_range()] {
+                        if !matches!(*byte, b'\n' | b'\r') {
+                            *byte = b' ';
+                        }
+                    }
+                } else {
+                    let mut cursor = node.walk();
+                    stack.extend(node.named_children(&mut cursor));
+                }
+            }
+            return String::from_utf8(code)
+                .expect("blanking preserves UTF-8")
+                .split('\n')
+                .zip(lines)
+                .map(|(code, original)| {
+                    if code.trim().is_empty() && !original.trim().is_empty() {
+                        "/* */".into()
+                    } else {
+                        code.into()
+                    }
+                })
+                .collect();
+        }
+    }
+    let fortran = matches!(
+        extension.as_str(),
+        "f" | "for" | "f90" | "f95" | "f03" | "f08"
+    );
+    let fixed = matches!(extension.as_str(), "f" | "for");
+    let hash = matches!(
+        extension.as_str(),
+        "py" | "rb" | "sh" | "bash" | "ps1" | "psm1" | "yaml" | "yml" | "toml" | "r"
+    );
+    let dash = matches!(extension.as_str(), "sql" | "lua" | "hs" | "vhd" | "vhdl");
+    let c_style = matches!(
+        extension.as_str(),
+        "c" | "h"
+            | "cpp"
+            | "hpp"
+            | "cc"
+            | "cxx"
+            | "hxx"
+            | "java"
+            | "groovy"
+            | "gradle"
+            | "js"
+            | "jsx"
+            | "ts"
+            | "tsx"
+            | "rs"
+            | "go"
+            | "cs"
+            | "kt"
+            | "kts"
+            | "scala"
+            | "swift"
+            | "php"
+            | "dart"
+            | "v"
+            | "sv"
+    );
+    let mut block = false;
+    let mut quote = None;
+    let mut triple = false;
+    lines
+        .iter()
+        .map(|line| {
+            if fixed && matches!(line.as_bytes().first(), Some(b'c' | b'C' | b'*' | b'!')) {
+                return "/* */".into();
+            }
+            let bytes = line.as_bytes();
+            let mut out = bytes.to_vec();
+            let mut i = 0;
+            let mut comment = false;
+            while i < bytes.len() {
+                if block {
+                    comment = true;
+                    let width = if bytes.get(i..i + 2) == Some(b"*/") {
+                        block = false;
+                        2
+                    } else {
+                        1
+                    };
+                    out[i..i + width].fill(b' ');
+                    i += width;
+                } else if let Some(q) = quote {
+                    if bytes[i] == b'\\' {
+                        i = (i + 2).min(bytes.len());
+                        continue;
+                    }
+                    let width = if triple { 3 } else { 1 };
+                    if bytes
+                        .get(i..i + width)
+                        .is_some_and(|s| s.iter().all(|b| *b == q))
+                    {
+                        quote = None;
+                        i += width;
+                    } else {
+                        i += 1;
+                    }
+                } else if (fortran && bytes[i] == b'!')
+                    || (hash && bytes[i] == b'#')
+                    || (dash && bytes.get(i..i + 2) == Some(b"--"))
+                    || (c_style && bytes.get(i..i + 2) == Some(b"//"))
+                {
+                    out[i..].fill(b' ');
+                    comment = true;
+                    break;
+                } else if c_style && bytes.get(i..i + 2) == Some(b"/*") {
+                    block = true;
+                    comment = true;
+                    out[i..i + 2].fill(b' ');
+                    i += 2;
+                } else if matches!(bytes[i], b'\'' | b'"' | b'`') {
+                    quote = Some(bytes[i]);
+                    triple = bytes.get(i..i + 3) == Some(&[bytes[i]; 3]);
+                    i += if triple { 3 } else { 1 };
+                } else {
+                    i += 1;
+                }
+            }
+            if !triple && quote != Some(b'`') {
+                quote = None;
+            }
+            let out = String::from_utf8(out).expect("blanking preserves UTF-8");
+            if comment && out.trim().is_empty() {
+                "/* */".into()
+            } else {
+                out
+            }
+        })
+        .collect()
+}
+
 /// Resolve one anchor against the file's lines (`at` is 1-based).
 ///
 /// A declaration carrying annotations legitimately *starts* at its first
@@ -271,11 +434,13 @@ pub fn resolve_anchor(
 /// Requiring a kind would silently exclude every such language from the anchor
 /// metric, and report its files as empty besides.
 pub(crate) fn file_node_id(path: &str) -> synaptic_core::NodeId {
-    synaptic_core::NodeId(synaptic_core::make_id(&[path]))
+    synaptic_core::file_node_id(path)
 }
 
 pub(crate) fn is_file_node(node: &Node) -> bool {
     node.id == file_node_id(&node.source_file)
+        // Saved benchmark graphs before path fingerprints remain rescorable.
+        || node.id.0 == synaptic_core::make_id(&[&node.source_file])
 }
 
 /// The 1-based line a node claims to be declared on.
@@ -475,6 +640,7 @@ pub fn score_graph(dir: &Path, gd: &GraphData) -> Vec<LanguageQuality> {
     // declarations across a few thousand files; re-reading per node would make
     // the check quadratic in the common case.
     let mut lines_of: BTreeMap<&str, Option<Vec<String>>> = BTreeMap::new();
+    let mut code_lines_of: BTreeMap<&str, Vec<String>> = BTreeMap::new();
     let mut by_lang: BTreeMap<&str, LanguageQuality> = BTreeMap::new();
 
     // File-level counters first: which files exist, which errored, and which
@@ -529,13 +695,47 @@ pub fn score_graph(dir: &Path, gd: &GraphData) -> Vec<LanguageQuality> {
         let Some(lines) = lines.as_ref() else {
             continue; // file unreadable from here (submodule, filtered blob)
         };
+        let lines = if node.file_type == synaptic_core::FileType::Code {
+            code_lines_of
+                .entry(node.source_file.as_str())
+                .or_insert_with(|| code_anchor_lines(lines, &node.source_file))
+        } else {
+            lines
+        };
         // Lines are 1-based; an anchor past the end of the file is itself a
         // failure, not a reason to skip the node.
         let at = anchor_line(node).expect("checked above");
-        let stem = std::path::Path::new(node.source_file.as_str())
-            .file_stem()
+        let path = std::path::Path::new(node.source_file.as_str());
+        let stem = path
+            .extension()
+            .and_then(|s| s.to_str())
+            .filter(|ext| {
+                node.file_type != synaptic_core::FileType::Code
+                    || matches!(
+                        *ext,
+                        "sql" | "razor" | "cshtml" | "vue" | "svelte" | "astro"
+                    )
+            })
+            .and_then(|_| path.file_stem())
             .and_then(|s| s.to_str());
-        let verdict = resolve_anchor(lines, at, &node.label, lang.case_folds, stem);
+        // Kubernetes display labels are Kind/name; resource names may contain
+        // hyphens or be numeric in schema fixtures. Check the literal name.
+        let label = if lang.name == "yaml"
+            && node.extra.get("_node_type").and_then(|v| v.as_str()) == Some("config_resource")
+        {
+            node.label
+                .split_once('/')
+                .map_or(node.label.as_str(), |(_, name)| name)
+        } else if lang.name == "groovy" {
+            // The compiler name decodes string escapes; anchors use source spelling.
+            node.extra
+                .get("source_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or(&node.label)
+        } else {
+            &node.label
+        };
+        let verdict = resolve_anchor(lines, at, label, lang.case_folds, stem);
         let e = by_lang.entry(lang.name).or_default();
         e.language = lang.name.to_string();
         if verdict == Verdict::Unnameable {
@@ -1139,6 +1339,31 @@ mod tests {
     fn anchor_matches_requires_the_name_on_the_line() {
         assert!(anchor_matches("route()", "fn route(req: Req) {", false));
         assert!(!anchor_matches("route()", "fn other(req: Req) {", false));
+        assert_eq!(bare_name(".operator()()"), Some("operator()"));
+        assert_eq!(bare_name(".operator<()"), Some("operator<"));
+        assert!(anchor_matches(
+            ".operator()()",
+            "int operator () (int x);",
+            false
+        ));
+        assert!(!anchor_matches(
+            ".operator<()",
+            "int operator>(int x);",
+            false
+        ));
+    }
+
+    #[test]
+    fn javascript_regex_quotes_and_comment_markers_preserve_real_anchors() {
+        let lines = vec![
+            r#"var quote=/["']/g, slash=/https?:\/\//; function visible() {} // hidden()"#.into(),
+            "/* fake() */ function actual() {}".into(),
+        ];
+        let code = code_anchor_lines(&lines, "min.js");
+        assert!(anchor_matches("visible()", &code[0], false));
+        assert!(!anchor_matches("hidden()", &code[0], false));
+        assert!(anchor_matches("actual()", &code[1], false));
+        assert!(!anchor_matches("fake()", &code[1], false));
     }
 
     /// Fortran and friends fold identifier case by specification, so a
@@ -1179,6 +1404,45 @@ mod tests {
         );
     }
 
+    #[test]
+    fn code_anchors_cannot_match_comment_text_but_rationale_can() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("a.c"),
+            "/* fake()\n also_fake() */\n\nvoid real() {} // other()\n// TODO: documented\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("fake.f"),
+            "C     SUBROUTINE FAKE()\n\n      SUBROUTINE REAL()\n      END\n",
+        )
+        .unwrap();
+        let mut rationale = kindless("// TODO: documented", "a.c", 5);
+        rationale.file_type = synaptic_core::FileType::Rationale;
+        let gd = GraphData {
+            nodes: vec![
+                decl("fake()", "a.c", 1),
+                decl("also_fake()", "a.c", 2),
+                decl("other()", "a.c", 4),
+                decl("real()", "a.c", 4),
+                decl("FAKE()", "fake.f", 1),
+                decl("REAL()", "fake.f", 3),
+                rationale,
+            ],
+            ..Default::default()
+        };
+        let quality = score_graph(dir.path(), &gd);
+        let c = quality.iter().find(|q| q.language == "c").unwrap();
+        assert_eq!((c.anchors_exact, c.anchors_checked), (2, 5));
+        let f = quality.iter().find(|q| q.language == "fortran").unwrap();
+        assert_eq!((f.anchors_exact, f.anchors_checked), (1, 2));
+        let lines = vec!["// real() docs".into(), "void real() {}".into()];
+        assert_eq!(
+            resolve_anchor(&code_anchor_lines(&lines, "a.c"), 1, "real()", false, None),
+            Verdict::LeadingMatter
+        );
+    }
+
     /// A span past the end of the file is a failure, not a silent skip: that is
     /// exactly the shape of an off-by-one that eats a blank line.
     #[test]
@@ -1193,6 +1457,30 @@ mod tests {
         let rust = score_graph(dir.path(), &gd);
         assert_eq!(rust[0].anchors_checked, 1);
         assert_eq!(rust[0].anchors_exact, 0);
+    }
+
+    #[test]
+    fn yaml_resource_names_are_literal_and_wrong_lines_still_fail() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("a.yaml"), "# header\n\nkind: Service\nmetadata:\n  name: api-svc\n---\nkind: Service\nmetadata:\n  name: 1234\n").unwrap();
+        let mut nodes = vec![
+            decl("Service/api-svc", "a.yaml", 5),
+            decl("Service/1234", "a.yaml", 9),
+            decl("Service/api-svc", "a.yaml", 2),
+        ];
+        for node in &mut nodes {
+            node.extra
+                .insert("_node_type".into(), serde_json::json!("config_resource"));
+        }
+        let result = score_graph(
+            dir.path(),
+            &GraphData {
+                nodes,
+                ..Default::default()
+            },
+        );
+        assert_eq!(result[0].anchors_checked, 3);
+        assert_eq!(result[0].anchors_exact, 2);
     }
 
     #[test]
@@ -1335,6 +1623,21 @@ mod tests {
             resolve_anchor(&lines, 1, "Unrelated", false, Some("Z-Index")),
             Verdict::Wrong
         );
+    }
+
+    #[test]
+    fn razor_views_keep_the_file_named_anchor_allowance() {
+        let dir = tempfile::tempdir().unwrap();
+        for path in ["Z-Index.razor", "Z-Index.cshtml"] {
+            std::fs::write(dir.path().join(path), "<div>markup</div>\n").unwrap();
+            let graph = GraphData {
+                nodes: vec![kindless("Z_Index", path, 1)],
+                ..Default::default()
+            };
+            let quality = score_graph(dir.path(), &graph);
+            assert_eq!(quality[0].anchors_file_named, 1);
+            assert_eq!(quality[0].anchors_exact, 1);
+        }
     }
 
     /// The file node is identified by the extractor's own id derivation, not by

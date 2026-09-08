@@ -7,13 +7,25 @@ six families:
 2. **Agent token efficiency** — paired task success and provider tokens with Synaptic off/on.
 3. **Accuracy** — extraction correctness against a hand-labeled corpus (this document).
 4. **Scale** — extraction throughput across repository sizes and language families.
-5. **Extraction quality at scale** — correctness on 60 real repositories covering every
+5. **Extraction quality at scale** — correctness on 65 real repositories covering every
    shipped language, measured without hand labels and gated against pinned baselines.
 6. **Competitor head-to-head** — the same hand labels and fresh-build timing applied to
    Synaptic and Graphify.
 
-All accuracy numbers are exact set-comparison against human-verified labels; nothing here is
-estimated or self-reported by the tool.
+The hand-labeled accuracy corpus uses exact set comparisons against verified labels.
+Quality-at-scale measurements are diagnostics and independent-parser agreement, not exhaustive
+ground truth for declarations or call edges.
+
+The [consolidated parser validation report](eval/parser-validation.md) covers
+Groovy, Fortran, C/C++ and YAML improvements across five passes, with one
+[pinned corpus](eval/parser-validation.toml) and [combined results](eval/parser-validation-results.json).
+All 13 final repository gates pass over 13,000 files and 82,591 declaration
+anchors. All 666 reviewed Groovy sources parse cleanly, with 5,851 declarations
+accepted by the independent compiler matched to distinct graph nodes.
+Configured CMINPACK has zero parser errors and 283/283 compiler-confirmed calls;
+FFTPACK has 66/66 calls to the correct implementation files. The report retains
+historical comparisons and separates source-only gates, compiler-assisted
+results, upstream tests and runtime uncertainty.
 
 ## Agent token efficiency and standard retrieval
 
@@ -486,7 +498,7 @@ Notes on reading these:
 
 Scale (above) measures how *fast* extraction runs. A graph that anchored every declaration to
 the wrong line would post identical timings. This measures whether the graph is **right**, on
-54 pinned real-world repositories covering every language Synaptic ships, using properties
+65 pinned real-world repositories covering every language Synaptic ships, using properties
 that need no hand labels.
 
 It exists because the accuracy corpus, while exact, is 11 hand-written fixtures and 42 labeled

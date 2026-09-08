@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 use synaptic_core::NodeId;
 use synaptic_detect::{FileType, Manifest, detect};
 use synaptic_extract::{
-    ExtractionResult, attach_cpp_methods, cached_extract_source, load_alias_resolver,
-    prune_local_sdk_candidates, resolve_imports,
+    ExtractionResult, attach_cpp_methods, load_alias_resolver, prune_local_sdk_candidates,
+    resolve_imports,
 };
 use synaptic_graph::{
     BuildOptions, ClusterOptions, KnowledgeGraph, ambiguous_concept_pairs, analyze,
@@ -67,6 +67,7 @@ pub(crate) fn run_extract(
 
     let out_dir = root.join("synaptic-out");
     let cache_dir = out_dir.join("cache");
+    let project = synaptic_extract::project::Project::load(&root);
     // Provenance snapshot BEFORE extraction (extract is the longest build, so
     // the likeliest to overlap an edit): saving a post-extraction walk instead
     // would stamp a mid-build edit as seen without ever ingesting it.
@@ -109,7 +110,7 @@ pub(crate) fn run_extract(
 
     // Extract files in parallel (rayon). Each file is read + extracted with the
     // path RELATIVE to root so node ids and source_file are portable across
-    // machines/checkouts (the file-node id is make_id(path)). `map`+ordered
+    // machines/checkouts (file IDs fingerprint the relative path). `map`+ordered
     // `collect` preserves the (path-sorted) input order, so the merge, and thus
     // graph.json, is deterministic regardless of thread scheduling. The AST
     // cache lets an unchanged file skip re-parsing on a rebuild.
@@ -120,7 +121,7 @@ pub(crate) fn run_extract(
                 let rel = file.strip_prefix(&root).unwrap_or(file);
                 let rel_str = rel.to_string_lossy();
                 match std::fs::read(file) {
-                    Ok(bytes) => cached_extract_source(Some(&cache_dir), rel_str.as_ref(), &bytes),
+                    Ok(bytes) => project.extract(Some(&cache_dir), rel_str.as_ref(), &bytes),
                     Err(e) => {
                         eprintln!("warning: failed to read {}: {e}", file.display());
                         None
@@ -216,11 +217,9 @@ pub(crate) fn run_extract(
                             let rel = file.strip_prefix(&root).unwrap_or(file);
                             let rel_str = rel.to_string_lossy();
                             match std::fs::read(file) {
-                                Ok(bytes) => cached_extract_source(
-                                    Some(&cache_dir),
-                                    rel_str.as_ref(),
-                                    &bytes,
-                                ),
+                                Ok(bytes) => {
+                                    project.extract(Some(&cache_dir), rel_str.as_ref(), &bytes)
+                                }
                                 Err(e) => {
                                     eprintln!("warning: failed to read {}: {e}", file.display());
                                     None

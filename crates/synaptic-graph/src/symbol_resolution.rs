@@ -18,6 +18,8 @@ use synaptic_core::{Confidence, Edge, ImportRecord, Node, NodeId, RawCall};
 
 use crate::graph::KnowledgeGraph;
 
+mod fortran;
+
 /// Source-file extensions whose file-node labels must never be call targets.
 const SOURCE_EXTS: &[&str] = &[
     ".py", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts", ".go", ".rs", ".java",
@@ -27,9 +29,10 @@ const SOURCE_EXTS: &[&str] = &[
 /// Normalize a node label into the lookup key: `foo()`→`foo`, `.bar()`→`bar`,
 /// lowercased.
 fn normalize_label(label: &str) -> String {
+    let label = label.trim();
     label
-        .trim()
-        .trim_matches(|c| c == '(' || c == ')')
+        .strip_suffix("()")
+        .unwrap_or(label)
         .trim_start_matches('.')
         .to_lowercase()
 }
@@ -134,6 +137,8 @@ fn typed_member_target(
         Path::new(&source).extension().and_then(|ext| ext.to_str()),
         Some(
             "cs" | "java"
+                | "groovy"
+                | "gradle"
                 | "swift"
                 | "py"
                 | "js"
@@ -204,6 +209,7 @@ fn source_family(path: &str) -> Option<String> {
             "rs" => "rust",
             "c" | "h" | "cc" | "cpp" | "cxx" | "hh" | "hpp" | "hxx" => "native",
             "java" | "kt" | "kts" | "groovy" | "scala" => "jvm",
+            "f" | "for" | "f90" | "f95" | "f03" | "f08" => "fortran",
             _ => extension.as_str(),
         }
         .to_string(),
@@ -218,6 +224,30 @@ fn call_candidates(kg: &KnowledgeGraph, call: &RawCall, ids: &[NodeId]) -> Vec<N
             let node = kg.node(id)?;
             if family.is_some() && source_family(&node.source_file) != family {
                 return None;
+            }
+            if family.as_deref() == Some("native") && node.source_file.as_str() != call.source_file
+            {
+                if let Some(reachable) = kg
+                    .node(&call.caller)
+                    .and_then(|n| n.extra.get("link_targets"))
+                    .and_then(|v| v.as_array())
+                    && let Some(targets) =
+                        node.extra.get("build_targets").and_then(|v| v.as_array())
+                    && !targets.iter().any(|t| reachable.contains(t))
+                {
+                    return None;
+                }
+                let linkage = node.extra.get("native_linkage").and_then(|v| v.as_str());
+                if linkage == Some("internal") {
+                    return None;
+                }
+                let c_call = Path::new(&call.source_file)
+                    .extension()
+                    .and_then(|s| s.to_str())
+                    == Some("c");
+                if c_call && linkage == Some("cpp") {
+                    return None;
+                }
             }
             if matches!(family.as_deref(), Some("ecmascript" | "rust" | "native"))
                 && !matches!(
@@ -343,7 +373,7 @@ fn resolve_bash_sources(
     }
     // The file-node id for a path, collapses any slash style, so it equals both
     // the `imports_from` target id and a function's owning-file id.
-    let file_id = |path: &str| NodeId(synaptic_core::make_id(&[path]));
+    let file_id = synaptic_core::file_node_id;
 
     // functions_by_file[file_id][normalized label] = bash function node ids.
     let mut functions_by_file: HashMap<NodeId, HashMap<String, Vec<NodeId>>> = HashMap::new();
@@ -660,6 +690,36 @@ pub fn resolve_symbols(
     // duplicate from the generic cross-file pass.
     let mut out: Vec<Edge> = resolve_bash_sources(kg, raw_calls, &bash_sourced, &mut known);
     out.extend(resolve_ql_calls(kg, raw_calls, imports, &mut known));
+    let (fortran_edges, fortran_bound) = fortran::resolve(kg, raw_calls, &mut known);
+    out.extend(fortran_edges);
+
+    let mut compiler_symbols: HashMap<&str, Vec<NodeId>> = HashMap::new();
+    for node in kg.nodes() {
+        if let Some(symbol) = node.extra.get("compiler_symbol").and_then(|v| v.as_str()) {
+            compiler_symbols
+                .entry(symbol)
+                .or_default()
+                .push(node.id.clone());
+        }
+    }
+    for call in raw_calls {
+        if let Some(symbol) = call.callee.strip_prefix("compiler:")
+            && let Some(targets) = compiler_symbols.get(symbol)
+            && targets.len() == 1
+            && targets[0] != call.caller
+            && known.insert((call.caller.clone(), targets[0].clone(), "calls".into()))
+        {
+            out.push(calls_edge(
+                call.caller.clone(),
+                targets[0].clone(),
+                Confidence::Extracted,
+                1.0,
+                "compiler_resolved_call",
+                call.source_file.clone(),
+                call.source_location.clone(),
+            ));
+        }
+    }
 
     // C# keeps the member receiver (`Type.Method` / `this.Method` / typed
     // parameter calls), so exact owner+method matches can resolve across files
@@ -742,8 +802,9 @@ pub fn resolve_symbols(
             ));
         }
     }
-    for rc in raw_calls {
+    for (call_index, rc) in raw_calls.iter().enumerate() {
         if rc.is_member_call
+            || fortran_bound.contains(&call_index)
             || rc.callee.starts_with("ql:")
             || rc.source_file.to_ascii_lowercase().ends_with(".cs")
         {
@@ -807,8 +868,9 @@ pub fn resolve_symbols(
 
     // Pass 2: cross-file single-candidate (INFERRED, 0.8)
     let label_index = build_label_index(kg);
-    for rc in raw_calls {
+    for (call_index, rc) in raw_calls.iter().enumerate() {
         if rc.is_member_call
+            || fortran_bound.contains(&call_index)
             || rc.callee.starts_with("ql:")
             || rc.source_file.to_ascii_lowercase().ends_with(".cs")
         {
@@ -827,7 +889,31 @@ pub fn resolve_symbols(
         let Some(cands) = label_index.get(&callee.to_lowercase()) else {
             continue;
         };
-        let cands = call_candidates(kg, rc, cands);
+        let mut cands = call_candidates(kg, rc, cands);
+        if source_family(&rc.source_file).as_deref() == Some("fortran") {
+            // Module/internal procedures require scope or USE association; they
+            // are not external procedures merely because their names match.
+            // In-file scope has already been resolved by the extractor.
+            cands.retain(|id| {
+                kg.node(id)
+                    .is_some_and(|node| node.label.ends_with("()") && !node.label.starts_with('.'))
+            });
+        }
+        // Native and Fortran libraries include alternate implementations in separate
+        // source trees. A unique sibling is useful evidence, still INFERRED.
+        let sibling = cands.len() > 1
+            && matches!(
+                source_family(&rc.source_file).as_deref(),
+                Some("fortran" | "native")
+            );
+        if sibling {
+            cands.retain(|id| {
+                kg.node(id).is_some_and(|node| {
+                    Path::new(node.source_file.as_str()).parent()
+                        == Path::new(&rc.source_file).parent()
+                })
+            });
+        }
         if cands.len() != 1 {
             continue;
         }
@@ -843,7 +929,15 @@ pub fn resolve_symbols(
             target,
             Confidence::Inferred,
             0.8,
-            "call",
+            if sibling {
+                if source_family(&rc.source_file).as_deref() == Some("fortran") {
+                    "fortran_sibling_call"
+                } else {
+                    "native_sibling_call"
+                }
+            } else {
+                "call"
+            },
             rc.source_file.clone(),
             rc.source_location.clone(),
         ));
@@ -919,6 +1013,92 @@ mod tests {
     }
 
     #[test]
+    fn native_language_and_internal_linkage_limit_candidates() {
+        let mut nodes = Vec::new();
+        let mut links = Vec::new();
+        let mut calls = Vec::new();
+        for (path, source) in [
+            (
+                "app.c",
+                "int run(void) { work(); hidden(); bridge(); return 0; }",
+            ),
+            ("api.c", "void work(void) {} static void hidden(void) {}"),
+            (
+                "other.cpp",
+                "void work(int n) {} extern \"C\" void bridge(void) {}",
+            ),
+        ] {
+            let result = synaptic_extract::extract_source(path, source.as_bytes()).unwrap();
+            assert!(!result.parse_error);
+            nodes.extend(result.nodes);
+            links.extend(result.edges);
+            calls.extend(result.raw_calls);
+        }
+        let graph = kg(nodes, links);
+        let resolved = resolve_symbols(&graph, &calls, &[]);
+        let targets: HashSet<_> = resolved
+            .iter()
+            .filter(|e| e.relation == "calls")
+            .map(|e| {
+                (
+                    graph.node(&e.target).unwrap().source_file.as_str(),
+                    graph.node(&e.target).unwrap().label.as_str(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            targets,
+            HashSet::from([("api.c", "work()"), ("other.cpp", "bridge()")])
+        );
+    }
+
+    #[test]
+    fn compiler_symbols_resolve_exactly_and_reject_duplicate_definitions() {
+        let mut target = function_node("target", ".work()", "Worker.groovy");
+        target
+            .extra
+            .insert("compiler_symbol".into(), "Worker#work()".into());
+        let caller = function_node("caller", ".run()", "App.groovy");
+        let calls = [raw("caller", "compiler:Worker#work()", false, "App.groovy")];
+        let graph = kg(vec![target.clone(), caller.clone()], vec![]);
+        let edges = resolve_symbols(&graph, &calls, &[]);
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].context.as_deref(), Some("compiler_resolved_call"));
+        let mut duplicate = target.clone();
+        duplicate.id = NodeId("duplicate".into());
+        assert!(
+            resolve_symbols(&kg(vec![target, caller, duplicate], vec![]), &calls, &[]).is_empty()
+        );
+    }
+
+    #[test]
+    fn wrapped_c_names_resolve_by_complete_expression() {
+        let mut nodes = vec![
+            node("caller", "run()", "src/run.c"),
+            node("first", "WRAP(first)()", "src/first.c"),
+            node("test_first", "WRAP(first)()", "tests/first.c"),
+            node("second", "WRAP(second)()", "second.c"),
+            node("other", "OTHER(first)()", "other.c"),
+        ];
+        for node in &mut nodes {
+            node.set_kind(synaptic_core::NodeKind::Function);
+        }
+        let g = kg(nodes, vec![]);
+        let edges = resolve_symbols(
+            &g,
+            &[
+                raw("caller", "WRAP(first)", false, "src/run.c"),
+                raw("caller", "WRAP(missing)", false, "src/run.c"),
+            ],
+            &[],
+        );
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].target, NodeId("first".into()));
+        assert_eq!(edges[0].context.as_deref(), Some("native_sibling_call"));
+        assert_eq!(edges[0].confidence, Confidence::Inferred);
+    }
+
+    #[test]
     fn import_guided_resolves_extracted() {
         // a.py: `from helper import transform`; caller calls transform().
         let g = kg(
@@ -945,6 +1125,68 @@ mod tests {
         assert_eq!(meta["resolver"], "python_import_guided");
         assert_eq!(meta["imported_name"], "transform");
         assert_eq!(meta["module_stem"], "helper");
+    }
+
+    #[test]
+    fn fortran_sibling_inference_requires_a_unique_candidate() {
+        let g = kg(
+            vec![
+                node("caller", "SOLVE()", "SRC/solve.f"),
+                node("work", "WORK()", "SRC/work.F90"),
+                node("variant", "WORK()", "VARIANT/work.f"),
+                node("other", "OTHER()", "VARIANT/other.f"),
+                node("other2", "OTHER()", "TEST/other.f"),
+            ],
+            vec![],
+        );
+        let edges = resolve_symbols(
+            &g,
+            &[
+                raw("caller", "work", false, "SRC/solve.f"),
+                raw("caller", "other", false, "SRC/solve.f"),
+            ],
+            &[],
+        );
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].target.0, "work");
+        assert_eq!(edges[0].confidence, Confidence::Inferred);
+        assert_eq!(edges[0].context.as_deref(), Some("fortran_sibling_call"));
+        let g = kg(
+            vec![
+                node("caller", "SOLVE()", "SRC/solve.f"),
+                node("one", "WORK()", "SRC/a.f"),
+                node("two", "WORK()", "SRC/b.f90"),
+            ],
+            vec![],
+        );
+        assert!(
+            resolve_symbols(&g, &[raw("caller", "work", false, "SRC/solve.f")], &[]).is_empty()
+        );
+    }
+
+    #[test]
+    fn fortran_module_members_do_not_shadow_external_procedures() {
+        let g = kg(
+            vec![
+                node("caller", "SOLVE()", "src/solve.f"),
+                node("external", "WORK()", "src/work.f"),
+                node("member", ".WORK()", "src/module.f90"),
+                node("private", ".HIDDEN()", "src/module.f90"),
+                node("generic", "len_trim", "src/module.f90"),
+            ],
+            vec![],
+        );
+        let edges = resolve_symbols(
+            &g,
+            &[
+                raw("caller", "work", false, "src/solve.f"),
+                raw("caller", "hidden", false, "src/solve.f"),
+                raw("caller", "len_trim", false, "src/solve.f"),
+            ],
+            &[],
+        );
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges[0].target.0, "external");
     }
 
     #[test]
@@ -1033,8 +1275,8 @@ mod tests {
         // AND (ambiguously) in an UNsourced b/other.sh. The sourced scope picks
         // lib.sh's greet at EXTRACTED, where the global pass would refuse (the
         // name is globally ambiguous).
-        let app = synaptic_core::make_id(&["a/app.sh"]);
-        let lib = synaptic_core::make_id(&["a/lib.sh"]);
+        let app = synaptic_core::file_node_id("a/app.sh").0;
+        let lib = synaptic_core::file_node_id("a/lib.sh").0;
         let g = kg(
             vec![
                 node(&app, "app.sh", "a/app.sh"),

@@ -1,0 +1,102 @@
+# Parser validation corpus: 13 fixed revisions shared by all current checks.
+# Earlier 9- and 11-repository scopes are recorded in parser-validation-results.json.
+[[repo]]
+url = "https://github.com/fmtlib/fmt"
+sha = "cde18a38bbd960a2e803b76880fbbf4b4ffb3cd7"
+family = "systems-cpp"
+tier = "medium"
+suites = ["scale", "quality"]
+languages = ["cpp"]
+incremental_file = "include/fmt/format.h"
+
+[[repo]]
+url = "https://github.com/slimphp/Slim"
+sha = "80900fb39cafce3ae53b18a2c4f642a122f03095"
+family = "web-php"
+tier = "small"
+suites = ["scale", "quality"]
+languages = ["php"]
+incremental_file = "Slim/App.php"
+
+# ---------------------------------------------------------------------------
+# Quality-only corpus. One or more real repositories per shipped extractor.
+# ---------------------------------------------------------------------------
+
+[[repo]]
+url = "https://github.com/libuv/libuv"
+sha = "a6d06ba716b6facdf00e29306aa5013d51e070d4"
+family = "systems-c"
+tier = "medium"
+languages = ["c"]
+
+[[repo]]
+url = "https://github.com/SchemaStore/schemastore"
+sha = "7df1868317a201a138bc7e9eee0fbc05b4c288ff"
+family = "data-json"
+tier = "large"
+languages = ["json"]
+
+[[repo]]
+url = "https://github.com/guzzle/guzzle"
+sha = "d1cbca76970939a9c2ced55b1e25ea26f34fc773"
+family = "web-php"
+tier = "medium"
+languages = ["php"]
+
+[[repo]]
+url = "https://github.com/spockframework/spock"
+sha = "37e5e9a663ac6bc1ed1f72ac8374a81b879c66b0"
+family = "jvm-groovy"
+tier = "medium"
+languages = ["groovy"]
+
+[[repo]]
+url = "https://github.com/fortran-lang/stdlib"
+sha = "9a15c7772f1a76a6c497b9f3abb793841fc81f74"
+family = "scientific-fortran"
+tier = "medium"
+languages = ["fortran"]
+
+[[repo]]
+url = "https://github.com/Reference-LAPACK/lapack"
+sha = "51b349470b3b26c948d068deb45c9b120a47ed32"
+family = "scientific-fortran"
+tier = "large"
+languages = ["fortran"]
+
+# Fixed-form holdout with C translations sharing the same routine/file names.
+[[repo]]
+url = "https://github.com/devernay/cminpack"
+sha = "32d343ac33ac297594b5ffac57741e5615b4bb07"
+family = "scientific-fortran"
+tier = "small"
+languages = ["fortran", "c"]
+
+
+[[repo]]
+url = "https://github.com/jwagenleitner/groovy-wslite"
+sha = "4457c93354f6c20b1c32b689469ef5794037db8b"
+family = "groovy-http"
+tier = "small"
+languages = ["groovy"]
+
+[[repo]]
+url = "https://github.com/fortran-lang/fftpack"
+sha = "0fffe7c05a918363a7cc12ae138a695afd115f36"
+family = "fortran-numerical"
+tier = "small"
+languages = ["fortran"]
+
+[[repo]]
+url = "https://github.com/http-builder-ng/http-builder-ng"
+sha = "3f97e2278d6d2e71a3d16c0561146d8f096e9f70"
+family = "groovy-http-client"
+tier = "small"
+languages = ["groovy"]
+
+[[repo]]
+url = "https://github.com/fortran-lang/fpm"
+sha = "9a4433dd19183b548cd67afbd32992f53dc2b987"
+family = "fortran-package-manager"
+tier = "small"
+languages = ["fortran"]

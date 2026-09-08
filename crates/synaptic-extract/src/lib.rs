@@ -55,12 +55,14 @@ pub fn with_extraction_pool<R: Send>(operation: impl FnOnce() -> R + Send) -> R 
 }
 
 pub mod cache;
+mod compiler_facts;
 pub mod config;
 #[cfg(feature = "cross-language")]
 pub mod crosslang;
 #[cfg(feature = "cross-language")]
 pub mod dynamic;
 pub mod paths;
+pub mod project;
 pub mod python;
 #[cfg(feature = "decl-recovery")]
 mod recovery;
@@ -267,7 +269,7 @@ pub fn extract_source(path: &str, source: &[u8]) -> Option<ExtractionResult> {
         .to_ascii_lowercase();
     let ext = ext_owned.as_str();
     #[allow(unused_mut)]
-    let mut result = (match ext {
+    let mut result: ExtractionResult = (match ext {
         #[cfg(feature = "lang-python")]
         "py" => Some(python::extract_python_source(path, source)),
         #[cfg(feature = "lang-javascript")]
@@ -401,6 +403,14 @@ pub fn extract_source(path: &str, source: &[u8]) -> Option<ExtractionResult> {
     }
     #[cfg(feature = "cross-language")]
     crosslang::augment(path, source, &mut result);
+    if let Some(file) = result
+        .nodes
+        .iter_mut()
+        .find(|n| n.id == paths::file_node_id(path))
+    {
+        file.extra
+            .insert("extractor_version".into(), cache::AST_CACHE_VERSION.into());
+    }
     Some(result)
 }
 

@@ -76,14 +76,29 @@ pub fn extract_yaml_source(path: &str, source: &[u8]) -> ExtractionResult {
             // `idx` disambiguates same-kind/no-name docs within a multi-doc file.
             let kind = ex.value_scalar_for(pairs, "kind").unwrap_or_default();
             if !kind.is_empty() {
+                let name_pair = ex.value_mapping(pairs, "metadata").and_then(|mapping| {
+                    ex.pairs(mapping)
+                        .into_iter()
+                        .find(|p| ex.key_text(*p).as_deref() == Some("name"))
+                });
                 let name = ex.nested_scalar(pairs, "metadata", "name");
+                let anchor = name_pair
+                    .filter(|_| name.as_ref().is_some_and(|name| !name.is_empty()))
+                    .or_else(|| {
+                        pairs
+                            .iter()
+                            .copied()
+                            .find(|p| ex.key_text(*p).as_deref() == Some("kind"))
+                    })
+                    .unwrap();
+                let line = anchor.start_position().row + 1;
                 let label = match name {
                     Some(n) if !n.is_empty() => format!("{kind}/{n}"),
                     _ => kind.clone(),
                 };
                 let id = NodeId(make_id(&["k8s", path, &idx.to_string(), &label]));
-                b.add_tagged_node(id.clone(), label, 1, "config_resource");
-                b.add_edge(file_nid.clone(), id, "contains", 1, Some("k8s"));
+                b.add_tagged_node(id.clone(), label, line, "config_resource");
+                b.add_edge(file_nid.clone(), id, "contains", line, Some("k8s"));
             }
         }
     }
@@ -334,6 +349,12 @@ mod tests {
         let r = extract_yaml_source("deploy.yaml", src);
         let labels: Vec<_> = r.nodes.iter().map(|n| n.label.clone()).collect();
         assert!(labels.contains(&"Deployment/api".to_string()), "{labels:?}");
+        let r = extract_yaml_source(
+            "unnamed.yaml",
+            b"# header\nkind: Service\nmetadata:\n  name: ''\n",
+        );
+        let node = r.nodes.iter().find(|n| n.label == "Service").unwrap();
+        assert_eq!(node.source_location.as_deref(), Some("L2"));
     }
 
     #[test]
@@ -344,6 +365,15 @@ mod tests {
         let labels: Vec<_> = r.nodes.iter().map(|n| n.label.clone()).collect();
         assert!(labels.contains(&"Deployment/api".to_string()), "{labels:?}");
         assert!(labels.contains(&"Service/api-svc".to_string()));
+        for (label, line) in [("Deployment/api", "L4"), ("Service/api-svc", "L9")] {
+            let node = r.nodes.iter().find(|n| n.label == label).unwrap();
+            assert_eq!(node.source_location.as_deref(), Some(line));
+            assert!(
+                r.edges
+                    .iter()
+                    .any(|e| e.target == node.id && e.source_location.as_deref() == Some(line))
+            );
+        }
     }
 
     #[test]
