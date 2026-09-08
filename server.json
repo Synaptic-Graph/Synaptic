@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.Synaptic-Graph/synaptic",
+  "name": "io.github.ColinVaughn/synaptic",
   "title": "Synaptic Code Intelligence",
   "description": "Code intelligence for repository graphs, change impact, test selection, and engineering memory.",
   "repository": {
