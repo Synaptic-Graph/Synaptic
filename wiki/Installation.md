@@ -4,9 +4,30 @@ Synaptic's engine and terminal workflow are a single static Rust binary named `s
 There is no runtime or interpreter to install alongside it. The optional `synaptic-ui`
 desktop addon provides visual setup and a searchable interface to the complete CLI.
 
-## Requirements
+## One-command install
 
-- A stable Rust toolchain. The repo pins **Rust 1.97.1** via `rust-toolchain.toml`, so a
+The bootstrap installers download the latest release for the current platform, verify its
+published SHA-256 checksum, install it for the current user, and add its directory to the
+user `PATH`. They do not require Rust or administrator access.
+
+```sh
+# macOS / Linux
+curl --proto '=https' --tlsv1.2 -LsSf https://raw.githubusercontent.com/ColinVaughn/Synaptic/main/install.sh | sh
+
+# Windows PowerShell
+irm https://raw.githubusercontent.com/ColinVaughn/Synaptic/main/install.ps1 | iex
+```
+
+The default destinations are `~/.local/bin` on macOS/Linux and
+`%LOCALAPPDATA%\Programs\Synaptic` on Windows. Set `SYNAPTIC_INSTALL_DIR` before running the
+script to choose another directory. The release also includes `synaptic-ui`; launch it for
+the visual build-and-connect flow, or continue in a repository with `synaptic extract .`
+and `synaptic install <assistant>`.
+
+## Build requirements
+
+- A stable Rust toolchain is needed only when building from source. The repo pins
+  **Rust 1.97.1** via `rust-toolchain.toml`, so a
   `rustup`-managed environment will select it automatically.
 - Git, if you plan to use the PR dashboard, git hooks, or git-based workspace members.
 

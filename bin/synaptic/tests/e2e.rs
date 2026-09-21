@@ -21,6 +21,7 @@ fn serve_help_lists_mcp_behavior_flags() {
     for flag in [
         "--watch",
         "--concise",
+        "--lazy-tools",
         "--allow-exec",
         "--immutable-graph",
         "--expected-graph-sha256",
@@ -652,16 +653,23 @@ fn install_then_uninstall_skill() {
         .assert()
         .success();
     assert!(root.join(".claude/skills/synaptic/SKILL.md").exists());
-    let claude = fs::read_to_string(root.join("CLAUDE.md")).unwrap();
+    let claude = fs::read_to_string(root.join("AGENTS.md")).unwrap();
     assert!(
         claude.contains("## Synaptic"),
         "always-on section: {claude}"
     );
+    assert!(!root.join("CLAUDE.md").exists());
     // Installing Claude also registers PreToolUse hooks in .claude/settings.json.
     let settings = fs::read_to_string(root.join(".claude/settings.json")).unwrap();
     assert!(
         settings.contains("PreToolUse") && settings.contains("synaptic-out/graph.json"),
         "settings hooks: {settings}"
+    );
+    let mcp: serde_json::Value =
+        serde_json::from_slice(&fs::read(root.join(".mcp.json")).unwrap()).unwrap();
+    assert_eq!(
+        mcp["mcpServers"]["synaptic"]["args"],
+        serde_json::json!(["serve", "--lazy-tools"])
     );
 
     Command::cargo_bin("synaptic")
@@ -677,6 +685,9 @@ fn install_then_uninstall_skill() {
             !after.contains("synaptic-out/graph.json"),
             "hooks removed: {after}"
         );
+    }
+    if let Ok(after) = fs::read_to_string(root.join(".mcp.json")) {
+        assert!(!after.contains("synaptic"), "MCP server removed: {after}");
     }
 }
 

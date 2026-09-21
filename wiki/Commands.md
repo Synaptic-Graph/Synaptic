@@ -1085,7 +1085,7 @@ tools to an AI assistant.
 Syntax:
 
 ```sh
-synaptic serve [--graph <PATH>] [--http <ADDR>] [--api-key <KEY>] [--source-root <DIR>] [--allow-exec] [--allow-memory-write] [--memory-peer <STORE>]... [MEMORY PRINCIPAL OPTIONS] [--concise] [--watch] [--immutable-graph] [--expected-graph-sha256 <HEX>] [--ready-file <PATH>]
+synaptic serve [--graph <PATH>] [--http <ADDR>] [--api-key <KEY>] [--source-root <DIR>] [--allow-exec] [--allow-memory-write] [--memory-peer <STORE>]... [MEMORY PRINCIPAL OPTIONS] [--concise] [--lazy-tools] [--watch] [--immutable-graph] [--expected-graph-sha256 <HEX>] [--ready-file <PATH>]
 ```
 
 | Name | Default | Description |
@@ -1102,6 +1102,7 @@ synaptic serve [--graph <PATH>] [--http <ADDR>] [--api-key <KEY>] [--source-root
 | `--memory-workspace-claim` | none | Grant the configured principal access to one workspace scope. Repeatable. |
 | `--memory-allow-private` | off | Let the configured principal read/write all private records instead of only records it owns. |
 | `--concise` | off | Token-lean output: lower the default list/budget sizes so tool results return less to the model (or set `SYNAPTIC_CONCISE`). An explicit per-call argument always wins. |
+| `--lazy-tools` | off | Advertise five common tools plus `tool_search` and `call_tool`; all other tools remain available through progressive discovery. |
 | `--watch` | off | Embed a filesystem watcher so the auto-freshen staleness check is event-driven — no walk or debounce window per query (or set `SYNAPTIC_SERVE_WATCH=1`). See [Incremental-Updates](Incremental-Updates). |
 | `--immutable-graph` | off | Pin the graph loaded at startup and disable graph-file hot reload, source catch-up, and filesystem watching. Use for verified read-only snapshots. |
 | `--expected-graph-sha256` | off | Require the exact graph bytes loaded and parsed at startup to match this 64-character SHA-256 digest. Requires `--immutable-graph` and bypasses shard-store auto-selection. |
@@ -1109,8 +1110,8 @@ synaptic serve [--graph <PATH>] [--http <ADDR>] [--api-key <KEY>] [--source-root
 
 Defaults to stdio transport. The MCP server supports stateless MCP `2026-07-28`
 and retains initialize/session compatibility for `2025-11-25`, `2025-06-18`,
-`2025-03-26`, and `2024-11-05`. It exposes the 30 core read-only tools plus five
-read-only repository-memory tools (`record_change_outcome` is an additional
+`2025-03-26`, and `2024-11-05`. Its full surface exposes 37 core, analysis, and
+vulnerability tools plus five read-only repository-memory tools (`record_change_outcome` is an additional
 opt-in tool), prompts,
 completions, resource templates/subscriptions, and structured tool output. When
 serving HTTP on a wildcard address with no API key, it prints a warning.
@@ -1178,6 +1179,8 @@ synaptic install --refresh
 | `--global` | off | Codex only: register the MCP server in the global `~/.codex/config.toml` (per-repo server) for the Codex desktop app, instead of the project `.codex/`. |
 | `--refresh` | off | Re-render every skill recorded in `~/.synaptic/skills.toml` to the current version (the `PLATFORM` arg is ignored). Hand-edited skills are left untouched. This is what `self-update` runs automatically. See [Assistant Integration](Assistant-Integration#versioning-and-auto-refresh). |
 
+`claude` writes its always-on block to `AGENTS.md`, registers `synaptic serve
+--lazy-tools` in the shared project `.mcp.json`, and adds its `PreToolUse` hooks.
 `codex` gets extra wiring: a native MCP server and a `SessionStart` hook (project
 `.codex/` by default, or a global per-repo server with `--global` for the desktop
 app). Prints the files written. Each install is recorded so a later

@@ -3848,7 +3848,7 @@ fn spawn_process(binary: OsString, root: PathBuf, args: Vec<OsString>) -> Runnin
                     Ok(TaskControl::Stop) => {
                         stopped = true;
                         stdin.take();
-                        // ponytail: kill the direct CLI child; add process groups if nested tools prove orphan-prone.
+                        // Kill the direct CLI child; add process groups if nested tools prove orphan-prone.
                         let _ = child.kill();
                     }
                     Err(TryRecvError::Empty) => break,

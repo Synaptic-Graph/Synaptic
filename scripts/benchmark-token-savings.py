@@ -522,6 +522,159 @@ def context_benchmark(args) -> None:
     print(markdown, end="")
 
 
+def mcp_request(process, request_id: int, method: str, params: dict | None = None) -> tuple[dict, str]:
+    request = {"jsonrpc": "2.0", "id": request_id, "method": method}
+    if params is not None:
+        request["params"] = params
+    process.stdin.write(json.dumps(request, separators=(",", ":")) + "\n")
+    process.stdin.flush()
+    while line := process.stdout.readline():
+        response = json.loads(line)
+        if response.get("id") == request_id:
+            if "error" in response:
+                die(f"MCP {method} failed: {response['error']}")
+            return response, line
+    detail = process.stderr.read().strip()
+    die(detail or f"MCP server exited before replying to {method}")
+
+
+def run_mcp_surface(synaptic: Path, tokcount: Path, graph: Path, lazy: bool, cases: list[dict]) -> dict:
+    with tempfile.TemporaryDirectory() as source_root:
+        command = [str(synaptic), "serve", "--graph", str(graph), "--source-root", source_root]
+        if lazy:
+            command.append("--lazy-tools")
+        process = subprocess.Popen(
+            command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+        )
+        try:
+            initialized, initialized_raw = mcp_request(
+                process,
+                1,
+                "initialize",
+                {
+                    "protocolVersion": "2025-11-25",
+                    "capabilities": {},
+                    "clientInfo": {"name": "synaptic-mcp-benchmark", "version": "1"},
+                },
+            )
+            process.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
+            process.stdin.flush()
+            listed, listed_raw = mcp_request(process, 2, "tools/list")
+            rows = []
+            if lazy:
+                for request_id, case in enumerate(cases, 3):
+                    response, raw = mcp_request(
+                        process,
+                        request_id,
+                        "tools/call",
+                        {
+                            "name": "tool_search",
+                            "arguments": {"query": case["query"], "limit": 5},
+                        },
+                    )
+                    names = [
+                        tool["name"]
+                        for tool in response["result"]["structuredContent"]["tools"]
+                    ]
+                    rows.append(
+                        {
+                            **case,
+                            "returned": names,
+                            "top_1": bool(names and names[0] == case["expected"]),
+                            "recall_at_5": case["expected"] in names,
+                            "response_tokens": count_with(tokcount, text=raw),
+                        }
+                    )
+            initialize_tokens = count_with(tokcount, text=initialized_raw)
+            tools_list_tokens = count_with(tokcount, text=listed_raw)
+            return {
+                "tool_count": len(listed["result"]["tools"]),
+                "initialize_tokens": initialize_tokens,
+                "tools_list_tokens": tools_list_tokens,
+                "discovery_tokens": initialize_tokens + tools_list_tokens,
+                "routing": rows,
+                "protocol_version": initialized["result"]["protocolVersion"],
+            }
+        finally:
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+
+
+def routing_metrics(rows: list[dict]) -> dict:
+    count = len(rows)
+    return {
+        "cases": count,
+        "top_1_accuracy": sum(row["top_1"] for row in rows) / count if count else 0.0,
+        "recall_at_5": sum(row["recall_at_5"] for row in rows) / count if count else 0.0,
+        "response_tokens": sum(row["response_tokens"] for row in rows),
+        "mean_response_tokens": statistics.mean(row["response_tokens"] for row in rows)
+        if rows
+        else 0.0,
+    }
+
+
+def mcp_markdown(report: dict) -> str:
+    eager, lazy, routing = report["eager"], report["lazy"], report["routing"]
+    rows = "\n".join(
+        f"| {row['query']} | {row['expected']} | {row['returned'][0] if row['returned'] else '-'} | {'yes' if row['recall_at_5'] else 'no'} |"
+        for row in lazy["routing"]
+    )
+    return f"""# Synaptic MCP discovery benchmark
+
+Exact raw-wire `cl100k_base` counts for the production MCP initialize and tools/list responses.
+
+| Surface | Tools | Initialize | tools/list | Discovery total |
+|---|---:|---:|---:|---:|
+| Eager | {eager['tool_count']} | {eager['initialize_tokens']:,} | {eager['tools_list_tokens']:,} | {eager['discovery_tokens']:,} |
+| Lazy | {lazy['tool_count']} | {lazy['initialize_tokens']:,} | {lazy['tools_list_tokens']:,} | {lazy['discovery_tokens']:,} |
+
+Lazy discovery saves **{pct(report['discovery_token_savings'])}** of initial MCP discovery tokens. Tool routing top-1 accuracy is **{pct(routing['top_1_accuracy'])}** and recall@5 is **{pct(routing['recall_at_5'])}** across {routing['cases']} cases; a search response averages {routing['mean_response_tokens']:.0f} tokens.
+
+| Intent | Expected | Top result | In top 5 |
+|---|---|---|---|
+{rows}
+"""
+
+
+def mcp_benchmark(args) -> None:
+    source = read_json(args.cases)
+    cases = source.get("cases", []) if isinstance(source, dict) else []
+    if not cases or not all(
+        isinstance(case.get("query"), str)
+        and case["query"]
+        and isinstance(case.get("expected"), str)
+        and case["expected"]
+        for case in cases
+    ):
+        die("MCP routing cases need non-empty query and expected strings")
+    eager = run_mcp_surface(args.synaptic.resolve(), args.tokcount.resolve(), args.graph.resolve(), False, [])
+    lazy = run_mcp_surface(args.synaptic.resolve(), args.tokcount.resolve(), args.graph.resolve(), True, cases)
+    report = {
+        "schema": "synaptic.mcp-discovery-report/v1",
+        "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "git_commit": git(args.repo_root, "rev-parse", "HEAD").strip(),
+        "dirty": bool(git(args.repo_root, "status", "--porcelain").strip()),
+        "tokenizer": "cl100k_base",
+        "eager": eager,
+        "lazy": lazy,
+        "discovery_token_savings": 1 - lazy["discovery_tokens"] / eager["discovery_tokens"],
+        "routing": routing_metrics(lazy["routing"]),
+    }
+    markdown = mcp_markdown(report)
+    write_json(args.out / "report.json", report)
+    (args.out / "report.md").write_text(markdown, encoding="utf-8")
+    print(markdown, end="")
+
+
 def context_corpus(args) -> None:
     source = read_json(args.cases)
     cases = source.get("cases", []) if isinstance(source, dict) else []
@@ -898,6 +1051,18 @@ def self_test() -> None:
         assert "/usr/local/bin/synaptic" in overlay
         assert hashlib.sha256(elf.read_bytes()).hexdigest() in overlay
         assert len(config_digest([root / "overlay.yaml"])) == 64
+        assert routing_metrics(
+            [
+                {"top_1": True, "recall_at_5": True, "response_tokens": 100},
+                {"top_1": False, "recall_at_5": True, "response_tokens": 200},
+            ]
+        ) == {
+            "cases": 2,
+            "top_1_accuracy": 0.5,
+            "recall_at_5": 1.0,
+            "response_tokens": 300,
+            "mean_response_tokens": 150,
+        }
 
         repo = root / "repo"
         repo.mkdir()
@@ -983,6 +1148,14 @@ def parser() -> argparse.ArgumentParser:
     context.add_argument("--max-nodes", type=int, default=30)
     context.add_argument("--out", type=Path, required=True)
 
+    mcp = commands.add_parser("mcp-benchmark", help="Measure eager/lazy MCP discovery and routing")
+    mcp.add_argument("--synaptic", type=Path, required=True)
+    mcp.add_argument("--tokcount", type=Path, required=True)
+    mcp.add_argument("--graph", type=Path, required=True)
+    mcp.add_argument("--cases", type=Path, required=True)
+    mcp.add_argument("--repo-root", type=Path, default=Path("."))
+    mcp.add_argument("--out", type=Path, required=True)
+
     corpus = commands.add_parser("context-corpus", help="Measure context across pinned repositories")
     corpus.add_argument("--synaptic", type=Path, required=True)
     corpus.add_argument("--tokcount", type=Path, required=True)
@@ -1046,6 +1219,8 @@ def main() -> int:
         mini_swe_overlay(args)
     elif args.command == "context-benchmark":
         context_benchmark(args)
+    elif args.command == "mcp-benchmark":
+        mcp_benchmark(args)
     elif args.command == "context-corpus":
         context_corpus(args)
     elif args.command == "beir-run":

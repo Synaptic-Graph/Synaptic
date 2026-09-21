@@ -5,13 +5,13 @@
 //! Generation is pure `@@SLOT@@` string substitution over an embedded template
 //! (no template engine), so the render is deterministic and unit-testable. The
 //! installer writes the per-platform skill file (where the platform has one) and
-//! injects an always-on section into `CLAUDE.md`/`AGENTS.md`/`GEMINI.md` via a
+//! injects an always-on section into `AGENTS.md`/`GEMINI.md` via a
 //! marker block that's replaced in place on reinstall (idempotent upgrade).
 //!
 //! Scope: a focused platform set (Claude/Agents/Gemini) rather
 //! than all ~20 integrations or monolith hosts (deferred). Installing the Claude
-//! platform also registers `PreToolUse` `settings.json` hooks (see
-//! [`settings_hooks`]). Git hooks are a separate command (`synaptic hook
+//! platform also registers the lazy MCP server and `PreToolUse` `settings.json`
+//! hooks (see [`settings_hooks`]). Git hooks are a separate command (`synaptic hook
 //! install`, C1d). Drift-guarding the rendered artifacts lives in [`drift`].
 #![forbid(unsafe_code)]
 
@@ -111,8 +111,9 @@ diff:
 
 const MARK_START: &str = "<!-- synaptic:start -->";
 const MARK_END: &str = "<!-- synaptic:end -->";
+const LEGACY_CLAUDE_INSTRUCTIONS: &str = "CLAUDE.md";
 
-/// The always-on block injected into `CLAUDE.md`/`AGENTS.md`/`GEMINI.md`.
+/// The always-on block injected into a host's instructions file.
 fn always_on_section() -> String {
     format!(
         "{MARK_START}\n\
@@ -210,9 +211,8 @@ impl Platform {
     /// The always-on instructions file this platform reads.
     pub(crate) fn always_on_file(self) -> &'static str {
         match self {
-            Platform::Claude => "CLAUDE.md",
-            // Codex reads AGENTS.md too, like the generic Agents platform.
-            Platform::Agents | Platform::Codex => "AGENTS.md",
+            // Claude and Codex both read AGENTS.md, like the generic Agents platform.
+            Platform::Claude | Platform::Agents | Platform::Codex => "AGENTS.md",
             Platform::Gemini => "GEMINI.md",
             Platform::Cursor => ".cursorrules",
             Platform::Copilot => ".github/copilot-instructions.md",
@@ -335,6 +335,9 @@ fn strip_section(body: &str) -> String {
 /// any) and inject the always-on section. Idempotent. Returns the paths written.
 pub fn install(platform: Platform, repo_root: &Path) -> std::io::Result<Vec<PathBuf>> {
     let mut written = Vec::new();
+    if platform == Platform::Claude {
+        written.push(settings_hooks::install_mcp_server(repo_root)?);
+    }
     if let Some(dest) = platform.skill_dest() {
         let path = repo_root.join(dest);
         if let Some(parent) = path.parent() {
@@ -343,9 +346,14 @@ pub fn install(platform: Platform, repo_root: &Path) -> std::io::Result<Vec<Path
         std::fs::write(&path, stamped_skill(platform))?;
         written.push(path);
     }
+    if platform == Platform::Claude {
+        // Older Synaptic releases used CLAUDE.md. Remove only our marked block;
+        // any repository-authored instructions in that file remain untouched.
+        strip_always_on_file(&repo_root.join(LEGACY_CLAUDE_INSTRUCTIONS))?;
+    }
     written.push(inject_always_on(platform, repo_root)?);
-    // Claude Code also reads PreToolUse hooks from .claude/settings.json; install
-    // them so the assistant is nudged to query the graph before broad exploration.
+    // Claude Code reads project MCP servers from .mcp.json and PreToolUse hooks
+    // from .claude/settings.json.
     if platform == Platform::Claude {
         written.push(settings_hooks::install_settings_hook(repo_root)?);
     }
@@ -373,7 +381,9 @@ pub fn uninstall(platform: Platform, repo_root: &Path) -> std::io::Result<()> {
     }
     strip_always_on(platform, repo_root)?;
     if platform == Platform::Claude {
+        strip_always_on_file(&repo_root.join(LEGACY_CLAUDE_INSTRUCTIONS))?;
         settings_hooks::uninstall_settings_hook(repo_root)?;
+        settings_hooks::uninstall_mcp_server(repo_root)?;
     }
     if platform == Platform::Codex {
         codex_config::uninstall(repo_root)?;
@@ -398,13 +408,16 @@ fn inject_always_on(platform: Platform, repo_root: &Path) -> std::io::Result<Pat
 /// Strip the always-on section from the platform's instructions file, removing
 /// the file if nothing else remains. No-op if the file is absent.
 fn strip_always_on(platform: Platform, repo_root: &Path) -> std::io::Result<()> {
-    let ao_path = repo_root.join(platform.always_on_file());
-    if let Ok(existing) = std::fs::read_to_string(&ao_path) {
+    strip_always_on_file(&repo_root.join(platform.always_on_file()))
+}
+
+fn strip_always_on_file(ao_path: &Path) -> std::io::Result<()> {
+    if let Ok(existing) = std::fs::read_to_string(ao_path) {
         let stripped = strip_section(&existing);
         if stripped.trim().is_empty() {
-            let _ = std::fs::remove_file(&ao_path);
+            let _ = std::fs::remove_file(ao_path);
         } else {
-            std::fs::write(&ao_path, stripped)?;
+            std::fs::write(ao_path, stripped)?;
         }
     }
     Ok(())
@@ -541,19 +554,31 @@ mod tests {
     fn install_uninstall_round_trip_claude() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
-        std::fs::write(root.join("CLAUDE.md"), "# Repo\n\nKeep this.\n").unwrap();
+        std::fs::write(root.join("AGENTS.md"), "# Repo\n\nKeep this.\n").unwrap();
+        std::fs::write(
+            root.join("CLAUDE.md"),
+            format!("# Legacy\n\nKeep this too.\n\n{}\n", stamped_always_on()),
+        )
+        .unwrap();
 
         let written = install(Platform::Claude, root).unwrap();
         assert!(written.iter().any(|p| p.ends_with("SKILL.md")));
         assert!(root.join(".claude/skills/synaptic/SKILL.md").exists());
-        let claude_md = std::fs::read_to_string(root.join("CLAUDE.md")).unwrap();
-        assert!(claude_md.contains("## Synaptic") && claude_md.contains("Keep this."));
+        assert!(root.join(".mcp.json").exists());
+        let agents_md = std::fs::read_to_string(root.join("AGENTS.md")).unwrap();
+        assert!(agents_md.contains("## Synaptic") && agents_md.contains("Keep this."));
+        let legacy = std::fs::read_to_string(root.join("CLAUDE.md")).unwrap();
+        assert!(!legacy.contains("## Synaptic"));
+        assert!(legacy.contains("Keep this too."), "legacy prose survives");
 
         uninstall(Platform::Claude, root).unwrap();
         assert!(!root.join(".claude/skills/synaptic/SKILL.md").exists());
-        let after = std::fs::read_to_string(root.join("CLAUDE.md")).unwrap();
+        assert!(!root.join(".mcp.json").exists());
+        let after = std::fs::read_to_string(root.join("AGENTS.md")).unwrap();
         assert!(!after.contains("## Synaptic"), "section removed");
         assert!(after.contains("Keep this."), "foreign content survives");
+        let legacy = std::fs::read_to_string(root.join("CLAUDE.md")).unwrap();
+        assert!(legacy.contains("Keep this too."), "legacy prose survives");
     }
 
     #[test]

@@ -51,7 +51,7 @@ pub(crate) fn run_install(platform: &str, global: bool, refresh: bool) -> Result
     let written = synaptic_skillgen::install(p, &root).context("installing skill")?;
     // Record the install so `self-update` / `install --refresh` can re-render it.
     synaptic_skillgen::record_install(&synaptic_skillgen::registry_path(), p, &root);
-    println!("Installed the Synaptic skill:");
+    println!("Installed the Synaptic integration:");
     for path in &written {
         println!("  {}", path.display());
     }

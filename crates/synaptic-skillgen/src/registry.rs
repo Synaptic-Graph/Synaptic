@@ -13,7 +13,8 @@
 //! - drops entries whose files are all gone (uninstalled / repo deleted).
 //!
 //! Only the markdown skill artifacts are refreshed. Codex MCP config / hooks and
-//! Claude `settings.json` hooks are left to an explicit `synaptic install`.
+//! Claude `.mcp.json` / `settings.json` wiring are left to an explicit
+//! `synaptic install`.
 
 use std::path::{Path, PathBuf};
 
@@ -21,8 +22,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    Platform, extract_block, replace_or_append_section, skill_version, stamped_always_on,
-    stamped_skill,
+    LEGACY_CLAUDE_INSTRUCTIONS, Platform, extract_block, replace_or_append_section, skill_version,
+    stamped_always_on, stamped_skill, strip_always_on_file,
 };
 
 /// The registry file: `~/.synaptic/skills.toml` (`%USERPROFILE%\.synaptic\…` on
@@ -219,6 +220,31 @@ fn refresh_entry(entry: &mut Entry) -> EntryStatus {
 
     // Always-on marker block (every host).
     let ao_path = repo_root.join(platform.always_on_file());
+    if platform == Platform::Claude
+        && std::fs::read_to_string(&ao_path)
+            .ok()
+            .and_then(|file| extract_block(&file))
+            .is_none()
+    {
+        let legacy_path = repo_root.join(LEGACY_CLAUDE_INSTRUCTIONS);
+        if let Ok(legacy_file) = std::fs::read_to_string(&legacy_path)
+            && let Some(legacy_block) = extract_block(&legacy_file)
+        {
+            present = true;
+            if entry.block_hash.as_deref() == Some(content_hash(&legacy_block).as_str()) {
+                let target = std::fs::read_to_string(&ao_path).unwrap_or_default();
+                let rendered = stamped_always_on();
+                if std::fs::write(&ao_path, replace_or_append_section(&target, &rendered)).is_ok()
+                    && strip_always_on_file(&legacy_path).is_ok()
+                {
+                    entry.block_hash = Some(content_hash(&rendered));
+                    refreshed = true;
+                }
+            } else {
+                edited.push(LEGACY_CLAUDE_INSTRUCTIONS.to_string());
+            }
+        }
+    }
     if let Ok(file) = std::fs::read_to_string(&ao_path)
         && let Some(current_block) = extract_block(&file)
     {
@@ -415,5 +441,45 @@ mod tests {
         assert!(summary.refreshed.is_empty(), "{summary:?}");
         assert!(summary.skipped_edited.is_empty(), "{summary:?}");
         assert_eq!(summary.up_to_date, 1);
+    }
+
+    #[test]
+    fn refresh_migrates_an_unedited_legacy_claude_block() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("skills.toml");
+        let repo = dir.path().join("repo");
+        std::fs::create_dir_all(repo.join(".claude/skills/synaptic")).unwrap();
+        std::fs::write(
+            repo.join(".claude/skills/synaptic/SKILL.md"),
+            stamped_skill(Platform::Claude),
+        )
+        .unwrap();
+        std::fs::write(repo.join("AGENTS.md"), "# Shared instructions\n").unwrap();
+        let legacy_block = stamped_always_on();
+        std::fs::write(
+            repo.join(LEGACY_CLAUDE_INSTRUCTIONS),
+            format!("# Claude notes\n\n{legacy_block}\n"),
+        )
+        .unwrap();
+
+        let mut reg = Registry::default();
+        reg.entries.push(Entry {
+            repo: repo_key(&repo),
+            host: "claude".into(),
+            version: "0.9.3".into(),
+            skill_hash: Some(content_hash(&stamped_skill(Platform::Claude))),
+            block_hash: Some(content_hash(&legacy_block)),
+        });
+        reg.save(&path).unwrap();
+
+        let summary = refresh_all(&path);
+        assert_eq!(summary.refreshed.len(), 1, "{summary:?}");
+        assert!(summary.skipped_edited.is_empty(), "{summary:?}");
+        let agents = std::fs::read_to_string(repo.join("AGENTS.md")).unwrap();
+        assert!(agents.contains("# Shared instructions"));
+        assert!(agents.contains("## Synaptic"));
+        let legacy = std::fs::read_to_string(repo.join(LEGACY_CLAUDE_INSTRUCTIONS)).unwrap();
+        assert!(legacy.contains("# Claude notes"));
+        assert!(!legacy.contains("## Synaptic"));
     }
 }

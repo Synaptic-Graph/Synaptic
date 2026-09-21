@@ -183,7 +183,7 @@ impl Project {
                 variants.push(variant);
             }
         }
-        // ponytail: one active build; variant-specific graph identities are needed to merge builds.
+        // One active build; variant-specific graph identities are needed to merge builds.
         if variants.len() != 1 {
             let mut result = cached_extract_source(cache, path, source)?;
             note(

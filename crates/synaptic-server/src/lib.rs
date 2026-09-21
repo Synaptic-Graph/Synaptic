@@ -6,7 +6,7 @@
 //! pure [`Server::handle_request`] dispatcher, which makes the whole protocol
 //! unit-testable without an async runtime.
 //!
-//! 32 core tools over a graph loaded at startup, plus five read-only repository
+//! 37 core, analysis, and vulnerability tools over a graph loaded at startup, plus five read-only repository
 //! memory tools. `--allow-exec` adds the command-running `speculate`;
 //! `--allow-memory-write` adds the idempotent `record_change_outcome`. Graph navigation
 //! (`query_graph`, `get_node`, `get_source`, `get_neighbors`, `get_community`,
@@ -364,6 +364,8 @@ pub struct Server {
     /// so a default call returns less to the model; an explicit per-call argument
     /// still wins. Off by default to preserve existing output sizes.
     concise: bool,
+    /// Advertise a small front-door set plus progressive tool discovery.
+    lazy_tools: bool,
     /// On-query catch-up config (repo root, output dir, debounce, caps). `None`
     /// disables auto-freshen (e.g. no source root, or no graph path).
     freshen: Option<FreshenConfig>,
@@ -1088,6 +1090,7 @@ impl Server {
             allow_exec: false,
             resource_subscriptions: false,
             concise: concise_from_env(),
+            lazy_tools: false,
             freshen: None,
             last_fresh_check: Mutex::new(None),
             stale_files: std::sync::atomic::AtomicUsize::new(0),
@@ -1363,6 +1366,12 @@ impl Server {
     /// `serve --concise` flag should not be able to turn it back off.
     pub fn with_concise(mut self, concise: bool) -> Server {
         self.concise = self.concise || concise;
+        self
+    }
+
+    /// Advertise the token-lean progressive-discovery tool surface.
+    pub fn with_lazy_tools(mut self, lazy: bool) -> Server {
+        self.lazy_tools = lazy;
         self
     }
 
@@ -5094,11 +5103,19 @@ Cross-repo: {} edge(s) span repositories{}",
             }
             "ping" if !modern => Ok(json!({})),
             "tools/list" => Ok(json!({
-                "tools": tools_list_for(
-                    self.allow_exec,
-                    self.memory.is_some(),
-                    self.allow_memory_write
-                )
+                "tools": if self.lazy_tools {
+                    lazy_tools_list_for(
+                        self.allow_exec,
+                        self.memory.is_some(),
+                        self.allow_memory_write
+                    )
+                } else {
+                    tools_list_for(
+                        self.allow_exec,
+                        self.memory.is_some(),
+                        self.allow_memory_write
+                    )
+                }
             })),
             "prompts/list" => Ok(json!({ "prompts": prompts::prompts_list() })),
             "prompts/get" => {
@@ -5711,7 +5728,11 @@ Cross-repo: {} edge(s) span repositories{}",
             .memory
             .as_ref()
             .and_then(|_| memory_tools::schema_for(name, self.allow_memory_write));
-        let Some(tool) = registered_tool(self.allow_exec, name).or(memory_schema.as_ref()) else {
+        let meta_schema = self.lazy_tools.then(|| lazy_meta_tool(name)).flatten();
+        let Some(tool) = registered_tool(self.allow_exec, name)
+            .or(memory_schema.as_ref())
+            .or(meta_schema.as_ref())
+        else {
             return Err((-32602, format!("Unknown tool: {name}")));
         };
         let args = params
@@ -5726,6 +5747,50 @@ Cross-repo: {} edge(s) span repositories{}",
                 "Invalid arguments for {name}: {message}"
             )));
         }
+
+        if name == "tool_search" {
+            let query = args["query"].as_str().unwrap_or("");
+            let limit = args["limit"].as_u64().unwrap_or(5).min(10) as usize;
+            let matches = tool_search_matches(
+                &full_tools_list_for(
+                    self.allow_exec,
+                    self.memory.is_some(),
+                    self.allow_memory_write,
+                ),
+                query,
+                limit,
+            );
+            let text = if matches.is_empty() {
+                format!("No Synaptic tools matched {query:?}.")
+            } else {
+                matches
+                    .iter()
+                    .map(|tool| {
+                        format!(
+                            "{}: {}",
+                            tool["name"].as_str().unwrap_or(""),
+                            tool["description"].as_str().unwrap_or("")
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            };
+            return Ok(tool_execution_result(Ok((
+                text,
+                Some(json!({ "tools": matches })),
+            ))));
+        }
+        if name == "call_tool" {
+            let target = args["name"].as_str().unwrap_or("");
+            if matches!(target, "call_tool" | "tool_search") {
+                return Ok(tool_error_result("call_tool cannot invoke router tools"));
+            }
+            return self.dispatch_tool(&json!({
+                "name": target,
+                "arguments": args.get("arguments").cloned().unwrap_or_else(|| json!({}))
+            }));
+        }
+
         let s = |k: &str| {
             args.get(k)
                 .and_then(Value::as_str)
@@ -7091,7 +7156,8 @@ classes, files) as nodes and relationships (calls, imports, inheritance) as edge
 clustered into communities, plus a source-grounded temporal repository-memory overlay. \
 Graph and memory-query tools are read-only. The optional record_change_outcome tool is \
 available only when the operator enables --allow-memory-write. Query the graph before \
-grepping or reading files broadly.\n\
+grepping or reading files broadly. When tool_search and call_tool are present, use tool_search \
+to reveal a hidden tool's full description and input schema, then invoke it through call_tool.\n\
 \n\
 Flow: graph_stats or god_nodes to orient; query_graph for a question (terse ranked nodes \
 by default, full=true for the subgraph + edges); get_source to read a symbol's code (or a \
@@ -7618,20 +7684,6 @@ fn build_tools_list(allow_exec: bool) -> Value {
             t["title"] = title.clone();
             t["annotations"]["title"] = title;
         }
-        // Discovery is injected into model context by many MCP hosts. Keep the
-        // complete validation schemas, enums, required fields, and annotations,
-        // while bounding prose that otherwise repeats long usage guidance in
-        // every schema position. Detailed workflow guidance remains in the
-        // initialize instructions and wiki.
-        if let Some(description) = t.get_mut("description") {
-            compact_description_value(description, 140);
-        }
-        if let Some(schema) = t.get_mut("inputSchema") {
-            compact_schema_descriptions(schema);
-        }
-        if let Some(schema) = t.get_mut("outputSchema") {
-            compact_schema_descriptions(schema);
-        }
     }
     tools
 }
@@ -7684,6 +7736,20 @@ fn compact_schema_descriptions(value: &mut Value) {
     }
 }
 
+fn compact_tool_descriptions(tools: &mut Value) {
+    for tool in tools.as_array_mut().expect("tool registry is an array") {
+        if let Some(description) = tool.get_mut("description") {
+            compact_description_value(description, 140);
+        }
+        if let Some(schema) = tool.get_mut("inputSchema") {
+            compact_schema_descriptions(schema);
+        }
+        if let Some(schema) = tool.get_mut("outputSchema") {
+            compact_schema_descriptions(schema);
+        }
+    }
+}
+
 /// Build the advertised tool registry once per execution-policy variant. Tool
 /// calls validate against this exact registry, keeping runtime behavior aligned
 /// with `tools/list` without rebuilding its large schema payload per request.
@@ -7697,12 +7763,15 @@ fn tool_registry(allow_exec: bool) -> &'static Value {
     }
 }
 
+#[cfg(test)]
 fn tools_list(allow_exec: bool) -> Value {
-    tool_registry(allow_exec).clone()
+    let mut tools = tool_registry(allow_exec).clone();
+    compact_tool_descriptions(&mut tools);
+    tools
 }
 
-fn tools_list_for(allow_exec: bool, memory: bool, allow_memory_write: bool) -> Value {
-    let mut tools = tools_list(allow_exec);
+fn full_tools_list_for(allow_exec: bool, memory: bool, allow_memory_write: bool) -> Value {
+    let mut tools = tool_registry(allow_exec).clone();
     if memory {
         tools
             .as_array_mut()
@@ -7710,6 +7779,181 @@ fn tools_list_for(allow_exec: bool, memory: bool, allow_memory_write: bool) -> V
             .extend(memory_tools::schemas(allow_memory_write));
     }
     tools
+}
+
+fn tools_list_for(allow_exec: bool, memory: bool, allow_memory_write: bool) -> Value {
+    let mut tools = full_tools_list_for(allow_exec, memory, allow_memory_write);
+    compact_tool_descriptions(&mut tools);
+    tools
+}
+
+const LAZY_FRONT_TOOLS: &[&str] = &[
+    "query_graph",
+    "get_source",
+    "search_text",
+    "affected",
+    "working_changes_impact",
+];
+
+fn lazy_meta_tools() -> Vec<Value> {
+    vec![
+        json!({
+            "name": "tool_search",
+            "description": "Find the best Synaptic tool for a task. Returns full descriptions and input schemas for matching tools hidden by --lazy-tools.",
+            "inputSchema": { "type": "object", "properties": {
+                "query": { "type": "string", "description": "Describe the code-navigation, impact, memory, SQL, PR, or audit task to perform." },
+                "limit": { "type": "integer", "description": "Maximum matching tools to return (default 5, max 10)." }
+            }, "required": ["query"] },
+            "annotations": {
+                "readOnlyHint": true,
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "openWorldHint": false
+            }
+        }),
+        json!({
+            "name": "call_tool",
+            "description": "Call a Synaptic tool returned by tool_search without adding every tool schema to the model context.",
+            "inputSchema": { "type": "object", "properties": {
+                "name": { "type": "string", "description": "Exact tool name returned by tool_search." },
+                "arguments": { "type": "object", "description": "Arguments matching that tool's returned inputSchema." }
+            }, "required": ["name"] },
+            "annotations": {
+                "readOnlyHint": false,
+                "destructiveHint": false,
+                "idempotentHint": false,
+                "openWorldHint": true
+            }
+        }),
+    ]
+}
+
+fn lazy_meta_tool(name: &str) -> Option<Value> {
+    lazy_meta_tools()
+        .into_iter()
+        .find(|tool| tool["name"] == name)
+}
+
+fn lazy_tools_list_for(allow_exec: bool, memory: bool, allow_memory_write: bool) -> Value {
+    let mut tools = full_tools_list_for(allow_exec, memory, allow_memory_write)
+        .as_array()
+        .expect("tool registry is an array")
+        .iter()
+        .filter(|tool| {
+            tool["name"]
+                .as_str()
+                .is_some_and(|name| LAZY_FRONT_TOOLS.contains(&name))
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    // Output schemas do not help select or invoke a tool. Reveal only the
+    // matching input schemas on demand through tool_search.
+    for tool in &mut tools {
+        tool.as_object_mut()
+            .expect("tool schema is an object")
+            .remove("outputSchema");
+    }
+    tools.extend(lazy_meta_tools());
+    Value::Array(tools)
+}
+
+fn search_term_root(term: &str) -> &str {
+    for suffix in ["ing", "ers", "ed", "es", "s"] {
+        if term.len() > suffix.len() + 3
+            && let Some(root) = term.strip_suffix(suffix)
+        {
+            return root;
+        }
+    }
+    term
+}
+
+fn tool_search_aliases(name: &str) -> &'static str {
+    match name {
+        "find_callers" => "who calls incoming calls",
+        "find_callees" => "what does call outgoing calls",
+        "find_references" => "imports inheritance type usages all references",
+        "get_pr_impact" => "pull request impact blast radius",
+        "graph_stats" => "repository graph statistics nodes edges",
+        "vuln_scan" => "scan repository dependencies vulnerabilities security advisories",
+        _ => "",
+    }
+}
+
+fn tool_search_matches(tools: &Value, query: &str, limit: usize) -> Vec<Value> {
+    // Lexical ranking is sufficient for dozens of tools; use an
+    // embedding index if the registry grows into the hundreds.
+    const STOP_WORDS: &[&str] = &[
+        "a", "all", "an", "and", "does", "for", "how", "in", "is", "of", "on", "or", "the", "this",
+        "to", "what", "which", "who", "with",
+    ];
+    let words = query
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .map(str::to_ascii_lowercase)
+        .filter(|term| !term.is_empty())
+        .collect::<Vec<_>>();
+    let terms = words
+        .iter()
+        .filter(|term| term.len() > 1 && !STOP_WORDS.contains(&term.as_str()))
+        .cloned()
+        .collect::<Vec<_>>();
+    if terms.is_empty() {
+        return Vec::new();
+    }
+
+    let query = query.to_ascii_lowercase();
+    let mut ranked = tools
+        .as_array()
+        .expect("tool registry is an array")
+        .iter()
+        .filter_map(|tool| {
+            let name = tool["name"].as_str()?;
+            let name_text = name.replace('_', " ");
+            let description = tool["description"]
+                .as_str()
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            let summary = description.split('.').next().unwrap_or("");
+            let properties = tool["inputSchema"]["properties"]
+                .as_object()
+                .map(|properties| properties.keys().cloned().collect::<Vec<_>>().join(" "))
+                .unwrap_or_default();
+            let aliases = tool_search_aliases(name);
+            let mut score = usize::from(query == name_text) * 1_000
+                + usize::from(name_text.contains(&query)) * 100
+                + usize::from(description.contains(&query)) * 50;
+            score += words
+                .windows(2)
+                .filter(|pair| description.contains(&format!("{} {}", pair[0], pair[1])))
+                .count()
+                * 60;
+            for term in &terms {
+                let root = search_term_root(term);
+                score += usize::from(
+                    name_text
+                        .split(' ')
+                        .any(|word| word == term || word == root),
+                ) * 40;
+                score += usize::from(name_text.contains(root)) * 20;
+                score += usize::from(aliases.contains(root)) * 35;
+                score += usize::from(properties.contains(root)) * 10;
+                score += usize::from(summary.contains(root)) * 30;
+                score += usize::from(description.contains(root)) * 4;
+            }
+            (score > 0).then(|| (score, name, tool.clone()))
+        })
+        .collect::<Vec<_>>();
+    ranked.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(b.1)));
+    ranked
+        .into_iter()
+        .take(limit.clamp(1, 10))
+        .map(|(_, _, mut tool)| {
+            tool.as_object_mut()
+                .expect("tool schema is an object")
+                .remove("outputSchema");
+            tool
+        })
+        .collect()
 }
 
 fn registered_tool(allow_exec: bool, name: &str) -> Option<&'static Value> {
@@ -9665,7 +9909,7 @@ mod tests {
         // input-schema property needs its own description so agents use it right.
         // Use the full surface (incl. the opt-in speculate tool) so its schema is
         // documented too.
-        let tools = tools_list(true);
+        let tools = tools_list_for(true, true, true);
         for t in tools.as_array().unwrap() {
             let name = t["name"].as_str().unwrap();
             assert!(
@@ -9691,28 +9935,123 @@ mod tests {
     }
 
     #[test]
-    fn tool_discovery_payload_stays_within_prose_budget() {
+    fn lazy_surface_is_small_but_can_reach_hidden_tools() {
+        let mut server = server().with_lazy_tools(true);
+        let listed = server
+            .handle_request(&json!({"jsonrpc":"2.0","id":1,"method":"tools/list"}))
+            .unwrap();
+        let names = listed["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|tool| tool["name"].as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(names.len(), 7, "{names:?}");
+        assert!(names.contains(&"tool_search") && names.contains(&"call_tool"));
+        assert!(
+            !names.contains(&"graph_stats"),
+            "graph_stats should be lazy"
+        );
+
+        let found = call_tool_full(
+            &mut server,
+            "tool_search",
+            json!({"query":"repository graph node and edge statistics"}),
+        );
+        assert_eq!(
+            found["result"]["structuredContent"]["tools"][0]["name"],
+            "graph_stats"
+        );
+        let called = call_tool_full(
+            &mut server,
+            "call_tool",
+            json!({"name":"graph_stats","arguments":{}}),
+        );
+        assert_eq!(called["result"]["isError"], false, "{called}");
+        assert!(called["result"]["structuredContent"]["nodes"].is_number());
+    }
+
+    #[test]
+    fn lazy_tool_search_routes_representative_intents() {
+        let tools = full_tools_list_for(false, true, false);
+        for (query, expected) in [
+            ("who calls this function", "find_callers"),
+            ("imports inheritance and type usages", "find_references"),
+            ("tests for changed files", "affected_tests"),
+            ("review SQL before writing a query", "advise_sql"),
+            ("known incidents and failed attempts", "known_pitfalls"),
+            ("architecture decisions and invariants", "explain_decision"),
+            ("plan a symbol rename", "plan_rename"),
+            ("impact of a pull request", "get_pr_impact"),
+            ("regex literal source content", "search_text"),
+            (
+                "scan repository dependencies for vulnerabilities",
+                "vuln_scan",
+            ),
+        ] {
+            let matches = tool_search_matches(&tools, query, 5);
+            assert_eq!(
+                matches.first().and_then(|tool| tool["name"].as_str()),
+                Some(expected),
+                "routing {query:?}: {matches:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn lazy_search_preserves_unabridged_selection_guidance() {
+        let tools = full_tools_list_for(false, true, false);
+        let matches = tool_search_matches(&tools, "incoming callers", 1);
+        let description = matches[0]["description"].as_str().unwrap();
+        assert!(description.contains("find_references"), "{description}");
+        assert!(description.chars().count() > 140, "{description}");
+    }
+
+    #[test]
+    fn production_discovery_payload_stays_within_budget() {
+        let mut server = server();
+        let initialize = server
+            .handle_request(&json!({
+                "jsonrpc":"2.0", "id":1, "method":"initialize",
+                "params": init_params(LATEST_PROTOCOL)
+            }))
+            .unwrap();
+        // `synaptic serve` always attaches repository memory, so the production
+        // guard must include those five schemas as well as initialize guidance.
+        let tools = json!({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "result": { "tools": tools_list_for(false, true, false) }
+        });
+        let initialize = serde_json::to_string(&initialize).unwrap();
+        let tools = serde_json::to_string(&tools).unwrap();
+        let encoded_len = initialize.len() + tools.len();
+        let tokenizer = bpe().expect("cl100k tokenizer");
+        let tokens = tokenizer.encode_with_special_tokens(&initialize).len()
+            + tokenizer.encode_with_special_tokens(&tools).len();
+        assert!(
+            encoded_len <= 48_000,
+            "production initialize + tools/list grew beyond the measured character budget: {encoded_len}"
+        );
+        assert!(
+            tokens <= 10_750,
+            "production initialize + tools/list grew beyond the measured token budget: {tokens}"
+        );
+    }
+
+    #[test]
+    fn lazy_discovery_payload_stays_small() {
         let response = json!({
             "jsonrpc": "2.0",
             "id": 1,
-            "result": { "tools": tools_list(false) }
+            "result": { "tools": lazy_tools_list_for(false, true, false) }
         });
         let encoded = serde_json::to_string(&response).unwrap();
         let tokens = bpe()
             .expect("cl100k tokenizer")
             .encode_with_special_tokens(&encoded)
             .len();
-        // Budget includes the two typed change-contract tools. Keep enough room
-        // for their validation/output shapes while still catching prose creep.
-        assert!(
-            encoded.len() <= 40_500,
-            "tools/list prose grew beyond the measured character budget: {}",
-            encoded.len()
-        );
-        assert!(
-            tokens <= 9_000,
-            "tools/list prose grew beyond the measured token budget: {tokens}"
-        );
+        assert!(tokens <= 3_000, "lazy tools/list used {tokens} tokens");
     }
 
     #[test]

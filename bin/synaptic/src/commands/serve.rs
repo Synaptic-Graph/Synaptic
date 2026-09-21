@@ -22,6 +22,7 @@ pub(crate) struct ServeArgs {
     pub(crate) memory_workspace_claims: Vec<String>,
     pub(crate) memory_allow_private: bool,
     pub(crate) concise: bool,
+    pub(crate) lazy_tools: bool,
     pub(crate) watch: bool,
     pub(crate) immutable_graph: bool,
     pub(crate) expected_graph_sha256: Option<String>,
@@ -42,6 +43,7 @@ pub(crate) fn run_serve(args: ServeArgs) -> Result<()> {
         memory_workspace_claims,
         memory_allow_private,
         concise,
+        lazy_tools,
         watch,
         immutable_graph,
         expected_graph_sha256,
@@ -87,6 +89,7 @@ pub(crate) fn run_serve(args: ServeArgs) -> Result<()> {
         .with_memory_principal(memory_principal)
         .with_allow_memory_write(allow_memory_write)
         .with_concise(concise)
+        .with_lazy_tools(lazy_tools)
         .with_graph_reload(!immutable_graph);
     // Event-driven staleness (`--watch` / SYNAPTIC_SERVE_WATCH): a background
     // watcher flips a dirty flag on relevant changes, so queries skip the

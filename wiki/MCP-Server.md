@@ -87,7 +87,7 @@ older protocols define them.
 ## Running the server
 
 ```
-synaptic serve [--graph <path>] [--http <addr>] [--api-key <key>] [--source-root <dir>] [--allow-exec] [--allow-memory-write] [--memory-peer <store>]... [--memory-principal <id> MEMORY-CLAIMS] [--concise] [--watch] [--immutable-graph] [--expected-graph-sha256 <hex>] [--ready-file <path>]
+synaptic serve [--graph <path>] [--http <addr>] [--api-key <key>] [--source-root <dir>] [--allow-exec] [--allow-memory-write] [--memory-peer <store>]... [--memory-principal <id> MEMORY-CLAIMS] [--concise] [--lazy-tools] [--watch] [--immutable-graph] [--expected-graph-sha256 <hex>] [--ready-file <path>]
 ```
 
 - `--graph <path>` selects the `graph.json` to load. Default is the standard
@@ -135,6 +135,10 @@ synaptic serve [--graph <path>] [--http <addr>] [--api-key <key>] [--source-root
   to 20, `dynamic_hazards` to 20, `get_community` to 40, `top_n` to 6,
   `context_lines` to 25). An explicit per-call argument always wins. Equivalent to
   setting the `SYNAPTIC_CONCISE` environment variable (see [Configuration]).
+- `--lazy-tools`: advertise five common front-door tools plus `tool_search` and
+  `call_tool`. `tool_search` retrieves the full descriptions and input schemas
+  of matching hidden tools; `call_tool` invokes one. This reduces initial MCP
+  discovery without removing any capability.
 
 ### stdio transport
 
@@ -152,13 +156,23 @@ JSON-RPC stream on stdout.
 This is the mode an assistant launches as a subprocess. See
 [Assistant-Integration](Assistant-Integration) for wiring it into a host.
 
+### Registering with Claude Code
+
+`synaptic install claude` adds a shared project `.mcp.json` entry that launches
+`synaptic serve --lazy-tools`. Claude Code CLI and Claude Code Desktop both read
+this file; Claude asks for approval before enabling a project-scoped server.
+Foreign MCP servers and top-level configuration are preserved. `synaptic` must
+be on your `PATH`. See [Assistant-Integration](Assistant-Integration).
+
 ### Registering with Codex
 
 `synaptic install codex` wires this stdio server into Codex automatically: a
 `[mcp_servers.synaptic]` entry in the project `.codex/config.toml` (Codex CLI),
 or a per-repo `[mcp_servers.synaptic-<repo>]` in the global `~/.codex/config.toml`
 with `synaptic install codex --global` (Codex desktop app, which only reads the
-global config). `synaptic` must be on your `PATH`. See
+global config). Generated entries use `--lazy-tools` and Codex's
+`enabled_tools` allowlist, so only the seven progressive-discovery tools enter
+the initial tool context. `synaptic` must be on your `PATH`. See
 [Assistant-Integration](Assistant-Integration#codex).
 
 ### HTTP transport
@@ -296,6 +310,15 @@ knows how safe it is to run:
 ```json
 "annotations": { "readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": <bool> }
 ```
+
+With `--lazy-tools`, `tools/list` instead reports `query_graph`, `get_source`,
+`search_text`, `affected`, `working_changes_impact`, `tool_search`, and
+`call_tool`. Canonical tool descriptions are not truncated: `tool_search`
+returns the best matches with their full descriptions and input schemas, while
+omitting output schemas that are unnecessary for invocation. Pass the selected
+name and arguments to `call_tool`; its result is the underlying tool result.
+Because it can proxy open-world or explicitly mutating operations, `call_tool`
+is conservatively annotated non-read-only and non-idempotent.
 
 All default tools except `vuln_scan` are `readOnlyHint: true`. That tool is
 non-read-only because explicit `record: true` writes the audit ledger;

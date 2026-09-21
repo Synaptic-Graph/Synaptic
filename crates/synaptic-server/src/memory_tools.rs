@@ -30,11 +30,11 @@ pub(crate) fn schemas(allow_write: bool) -> Vec<Value> {
             "search_memory",
             "Search source-grounded repository history, decisions, procedures, and failed attempts.",
             json!({
-                "query": {"type":"string"},
-                "symbol": {"type":"string"},
-                "kinds": {"type":"array","items":{"type":"string"}},
-                "include_superseded": {"type":"boolean"},
-                "limit": {"type":"integer"}
+                "query": {"type":"string", "description":"Natural-language terms to match against remembered titles and summaries."},
+                "symbol": {"type":"string", "description":"Optional symbol or file anchor used to narrow the search."},
+                "kinds": {"type":"array","items":{"type":"string"}, "description":"Optional memory kinds to include, such as incident, decision, or procedure."},
+                "include_superseded": {"type":"boolean", "description":"Include superseded or retracted records (default false)."},
+                "limit": {"type":"integer", "description":"Maximum number of matches to return."}
             }),
             &[],
             true,
@@ -43,9 +43,9 @@ pub(crate) fn schemas(allow_write: bool) -> Vec<Value> {
             "explain_history",
             "Explain the revision-aware history attached to a symbol, file, or subsystem.",
             json!({
-                "subject": {"type":"string"},
-                "include_superseded": {"type":"boolean"},
-                "limit": {"type":"integer"}
+                "subject": {"type":"string", "description":"Symbol, file, or subsystem whose history should be explained."},
+                "include_superseded": {"type":"boolean", "description":"Include superseded or retracted records (default false)."},
+                "limit": {"type":"integer", "description":"Maximum number of history records to return."}
             }),
             &["subject"],
             true,
@@ -54,9 +54,9 @@ pub(crate) fn schemas(allow_write: bool) -> Vec<Value> {
             "find_similar_change",
             "Find previous changes with similar intent and affected symbols, including their outcomes.",
             json!({
-                "description": {"type":"string"},
-                "symbol": {"type":"string"},
-                "limit": {"type":"integer"}
+                "description": {"type":"string", "description":"Natural-language description of the proposed change."},
+                "symbol": {"type":"string", "description":"Optional affected symbol or file used to improve similarity."},
+                "limit": {"type":"integer", "description":"Maximum number of similar changes to return."}
             }),
             &["description"],
             true,
@@ -65,8 +65,8 @@ pub(crate) fn schemas(allow_write: bool) -> Vec<Value> {
             "known_pitfalls",
             "Find active regressions, failed attempts, incidents, and rejected review findings.",
             json!({
-                "subject": {"type":"string"},
-                "limit": {"type":"integer"}
+                "subject": {"type":"string", "description":"Symbol, file, or subsystem to check for known problems."},
+                "limit": {"type":"integer", "description":"Maximum number of pitfalls to return."}
             }),
             &["subject"],
             true,
@@ -75,9 +75,9 @@ pub(crate) fn schemas(allow_write: bool) -> Vec<Value> {
             "explain_decision",
             "Explain active architecture decisions, invariants, conventions, and procedures.",
             json!({
-                "subject": {"type":"string"},
-                "include_superseded": {"type":"boolean"},
-                "limit": {"type":"integer"}
+                "subject": {"type":"string", "description":"Architecture topic, symbol, file, or subsystem to explain."},
+                "include_superseded": {"type":"boolean", "description":"Include superseded or retracted decisions (default false)."},
+                "limit": {"type":"integer", "description":"Maximum number of supporting decisions to return."}
             }),
             &["subject"],
             true,
@@ -88,19 +88,19 @@ pub(crate) fn schemas(allow_write: bool) -> Vec<Value> {
             "record_change_outcome",
             "Persist a source-grounded, idempotent change outcome. Available only with --allow-memory-write.",
             json!({
-                "idempotency_key": {"type":"string"},
-                "title": {"type":"string"},
-                "summary": {"type":"string"},
-                "outcome": {"type":"string","enum":["succeeded","failed","partial","rolled_back","regressed"]},
-                "source_uri": {"type":"string"},
-                "commit": {"type":"string"},
-                "branch": {"type":"string"},
-                "affected_symbols": {"type":"array","items":{"type":"string"}},
-                "verification_status": {"type":"string","enum":["unknown","passed","failed","partial"]},
-                "verification_commands": {"type":"array","items":{"type":"string"}},
-                "confidence": {"type":"number"},
-                "scope": {"type":"string","enum":["private","repository","workspace"]},
-                "workspace": {"type":"string"}
+                "idempotency_key": {"type":"string", "description":"Stable unique key that makes retries update rather than duplicate this outcome."},
+                "title": {"type":"string", "description":"Short human-readable title for the change."},
+                "summary": {"type":"string", "description":"What changed, why, and any result worth remembering."},
+                "outcome": {"type":"string","enum":["succeeded","failed","partial","rolled_back","regressed"], "description":"Observed result of the change."},
+                "source_uri": {"type":"string", "description":"Durable evidence URI, such as a commit, pull request, or incident."},
+                "commit": {"type":"string", "description":"Optional commit revision that contains the change."},
+                "branch": {"type":"string", "description":"Optional branch associated with the outcome."},
+                "affected_symbols": {"type":"array","items":{"type":"string"}, "description":"Symbols or files directly affected by the change."},
+                "verification_status": {"type":"string","enum":["unknown","passed","failed","partial"], "description":"Overall verification result."},
+                "verification_commands": {"type":"array","items":{"type":"string"}, "description":"Commands or checks used to verify the outcome."},
+                "confidence": {"type":"number", "description":"Confidence in this record from 0.0 to 1.0."},
+                "scope": {"type":"string","enum":["private","repository","workspace"], "description":"Visibility boundary for the memory record."},
+                "workspace": {"type":"string", "description":"Workspace identifier when scope is workspace."}
             }),
             &[
                 "idempotency_key",

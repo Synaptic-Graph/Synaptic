@@ -1,15 +1,16 @@
 # Synaptic benchmarks
 
 Synaptic's claims are backed by reproducible benchmarks rather than assertion. There are
-six families:
+seven families:
 
 1. **Token economy** — how much smaller a graph query is than reading source (see the README).
 2. **Agent token efficiency** — paired task success and provider tokens with Synaptic off/on.
-3. **Accuracy** — extraction correctness against a hand-labeled corpus (this document).
-4. **Scale** — extraction throughput across repository sizes and language families.
-5. **Extraction quality at scale** — correctness on 65 real repositories covering every
+3. **MCP efficiency** — discovery-token cost and tool-routing quality with eager vs. lazy tools.
+4. **Accuracy** — extraction correctness against a hand-labeled corpus (this document).
+5. **Scale** — extraction throughput across repository sizes and language families.
+6. **Extraction quality at scale** — correctness on 65 real repositories covering every
    shipped language, measured without hand labels and gated against pinned baselines.
-6. **Competitor head-to-head** — the same hand labels and fresh-build timing applied to
+7. **Competitor head-to-head** — the same hand labels and fresh-build timing applied to
    Synaptic and Graphify.
 
 The hand-labeled accuracy corpus uses exact set comparisons against verified labels.
@@ -65,6 +66,32 @@ python scripts/benchmark-token-savings.py context-benchmark \
 
 This measures retrieved-context compression, not end-to-end agent token savings. The latter
 still requires the paired task run below so reduced context is not mistaken for reduced quality.
+
+### MCP discovery and routing
+
+The 2026-09-21 stdio run measures the production initialization path, including server
+instructions and the five default repository-memory tools. Counts are exact raw-wire
+`cl100k_base` tokens; a host may serialize, cache, or bill this context differently.
+
+| Surface | Tools | Initialize | tools/list | Discovery total |
+|---|---:|---:|---:|---:|
+| Eager | 42 | 957 | 9,476 | 10,433 |
+| Lazy | 7 | 957 | 1,988 | 2,945 |
+
+Lazy discovery reduced initial MCP discovery by **71.77%**. The checked-in
+[`eval/mcp-tool-routing-cases.json`](eval/mcp-tool-routing-cases.json) scored **15/15 top-1**
+and **15/15 recall@5** through `tool_search`; its search responses averaged 1,398 tokens.
+These hand-authored cases guard the known tool-selection boundaries, not general semantic
+retrieval quality. Paid-model task quality remains covered by the paired A/B protocol below.
+
+```sh
+cargo build -p synaptic
+cargo build -p synaptic-server --example tokcount
+python scripts/benchmark-token-savings.py mcp-benchmark \
+  --synaptic target/debug/synaptic --tokcount target/debug/examples/tokcount \
+  --graph synaptic-out/graph.json --cases eval/mcp-tool-routing-cases.json \
+  --out synaptic-out/eval/mcp-discovery
+```
 
 ### Pinned multi-repository context result
 

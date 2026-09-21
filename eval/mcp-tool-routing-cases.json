@@ -1,0 +1,20 @@
+{
+  "schema": "synaptic.mcp-tool-routing-cases/v1",
+  "cases": [
+    { "query": "who calls this function", "expected": "find_callers" },
+    { "query": "imports inheritance and type usages", "expected": "find_references" },
+    { "query": "tests for changed files", "expected": "affected_tests" },
+    { "query": "review SQL before writing a query", "expected": "advise_sql" },
+    { "query": "known incidents and failed attempts", "expected": "known_pitfalls" },
+    { "query": "architecture decisions and invariants", "expected": "explain_decision" },
+    { "query": "plan a symbol rename", "expected": "plan_rename" },
+    { "query": "impact of a pull request", "expected": "get_pr_impact" },
+    { "query": "regex literal source content", "expected": "search_text" },
+    { "query": "scan repository dependencies for vulnerabilities", "expected": "vuln_scan" },
+    { "query": "repository graph node and edge statistics", "expected": "graph_stats" },
+    { "query": "shortest path between two symbols", "expected": "shortest_path" },
+    { "query": "read the source code for a symbol", "expected": "get_source" },
+    { "query": "search previous repository memory", "expected": "search_memory" },
+    { "query": "working tree changes blast radius", "expected": "working_changes_impact" }
+  ]
+}

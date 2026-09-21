@@ -309,6 +309,10 @@ pub(crate) enum Cmd {
         /// Equivalent to setting SYNAPTIC_CONCISE=1.
         #[arg(long)]
         concise: bool,
+        /// Advertise a small front-door MCP surface. Hidden tools remain
+        /// available through tool_search followed by call_tool.
+        #[arg(long)]
+        lazy_tools: bool,
         /// Embed a filesystem watcher: staleness becomes event-driven, so
         /// queries skip the walk-per-query check and the debounce window
         /// entirely. Equivalent to setting SYNAPTIC_SERVE_WATCH=1.

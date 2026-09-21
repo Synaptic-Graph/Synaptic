@@ -10,6 +10,30 @@ All notable changes to Synaptic are documented here. The format is based on
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-21
+
+### Added
+
+- Checksummed, per-user bootstrap installers provide a one-command install on
+  macOS, Linux, and Windows and ship as GitHub Release assets.
+- MCP `--lazy-tools` mode advertises seven front-door/router tools while keeping
+  the full registry available through `tool_search` and `call_tool`. Claude Code
+  installs register the lazy server in `.mcp.json`; Codex installs enable the
+  same mode and write an explicit `enabled_tools` allowlist.
+- The MCP benchmark now measures real initialize/tools-list token cost and
+  checked-in tool-routing cases, alongside the existing response-context tests.
+
+### Fixed
+
+- Updated `rustls` to address RUSTSEC-2026-0285 before release.
+- Claude installs now use `AGENTS.md` for always-on instructions. Install and
+  refresh migrate Synaptic's legacy managed block from `CLAUDE.md` while
+  preserving repository-authored content.
+- Discovery budgets now cover the production server instructions and default
+  repository-memory tools. Memory schemas document every input parameter, and
+  progressive discovery retains full tool descriptions instead of globally
+  truncating selection guidance.
+
 ## [1.2.0] - 2026-09-08
 
 ### Added

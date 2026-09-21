@@ -97,6 +97,19 @@ pub fn uninstall(repo_root: &Path) -> std::io::Result<()> {
 /// Generous startup timeout: loading a large graph when `serve` starts can take
 /// a few seconds, and Codex's default (10s) is tight. Matches the app convention.
 const STARTUP_TIMEOUT_SEC: i64 = 120;
+const CODEX_ENABLED_TOOLS: &[&str] = &[
+    "query_graph",
+    "get_source",
+    "search_text",
+    "affected",
+    "working_changes_impact",
+    "tool_search",
+    "call_tool",
+];
+
+fn enabled_tools() -> Array {
+    CODEX_ENABLED_TOOLS.iter().copied().collect()
+}
 
 /// Project-mode server table: `synaptic serve` with no `--graph`, so it defaults
 /// to `synaptic-out/graph.json` relative to the server's cwd (the project root).
@@ -105,7 +118,9 @@ fn synaptic_server_table() -> Table {
     server["command"] = value("synaptic");
     let mut args = Array::new();
     args.push("serve");
+    args.push("--lazy-tools");
     server["args"] = value(args);
+    server["enabled_tools"] = value(enabled_tools());
     server["startup_timeout_sec"] = value(STARTUP_TIMEOUT_SEC);
     server
 }
@@ -117,9 +132,11 @@ fn global_server_table(graph_path: &Path) -> Table {
     server["command"] = value("synaptic");
     let mut args = Array::new();
     args.push("serve");
+    args.push("--lazy-tools");
     args.push("--graph");
     args.push(graph_path.to_string_lossy().as_ref());
     server["args"] = value(args);
+    server["enabled_tools"] = value(enabled_tools());
     server["startup_timeout_sec"] = value(STARTUP_TIMEOUT_SEC);
     server
 }
@@ -371,6 +388,19 @@ mod tests {
             parsed["mcp_servers"]["synaptic"]["command"].as_str(),
             Some("synaptic")
         );
+        let server = &parsed["mcp_servers"]["synaptic"];
+        assert!(
+            server["args"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|arg| arg.as_str() == Some("--lazy-tools")),
+            "{toml}"
+        );
+        assert_eq!(
+            server["enabled_tools"].as_array().unwrap().len(),
+            CODEX_ENABLED_TOOLS.len()
+        );
     }
 
     #[test]
@@ -587,7 +617,12 @@ mod tests {
             .map(|v| v.as_str().unwrap().to_string())
             .collect();
         assert_eq!(args.first().map(String::as_str), Some("serve"), "{args:?}");
+        assert!(args.iter().any(|a| a == "--lazy-tools"), "{args:?}");
         assert!(args.iter().any(|a| a == "--graph"), "{args:?}");
+        assert_eq!(
+            s["enabled_tools"].as_array().unwrap().len(),
+            CODEX_ENABLED_TOOLS.len()
+        );
         assert!(
             args.iter().any(|a| a
                 .replace('\\', "/")

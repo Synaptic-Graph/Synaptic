@@ -315,7 +315,7 @@ pub fn extract_source(path: &str, source: &[u8]) -> Option<ExtractionResult> {
         #[cfg(feature = "lang-json")]
         "json" | "uproject" | "uplugin" => Some(json::extract_json_source(path, source)),
         #[cfg(feature = "lang-json")]
-        // ponytail: Unreal packages stay opaque; add a real package parser when
+        // Unreal packages stay opaque; add a real package parser when
         // Blueprint symbol/bytecode coverage is required.
         "uasset" | "umap" => crate::resource::emit_resources()
             .then(|| crate::resource::extract_resource_source(path, b"")),

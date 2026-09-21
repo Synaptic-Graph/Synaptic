@@ -1,5 +1,4 @@
-//! Claude Code `PreToolUse` hooks written into `.claude/settings.json`,
-//! Synaptic-branded.
+//! Claude Code project MCP registration and Synaptic-branded `PreToolUse` hooks.
 //!
 //! Two hooks nudge (never block) the assistant to query the graph before broad
 //! file exploration, only when `synaptic-out/graph.json` exists:
@@ -58,6 +57,10 @@ fn settings_path(repo_root: &Path) -> PathBuf {
     repo_root.join(".claude").join("settings.json")
 }
 
+fn mcp_path(repo_root: &Path) -> PathBuf {
+    repo_root.join(".mcp.json")
+}
+
 /// Parse the existing settings, treating a missing or corrupt file as empty.
 /// Crate-visible so the Codex `hooks.json` writer can reuse it (same schema).
 pub(crate) fn load_settings(path: &Path) -> Map<String, Value> {
@@ -91,6 +94,72 @@ pub(crate) fn write_settings(path: &Path, settings: &Map<String, Value>) -> std:
     let mut text = serde_json::to_string_pretty(&Value::Object(settings.clone()))?;
     text.push('\n');
     std::fs::write(path, text)
+}
+
+fn load_mcp_config(path: &Path) -> std::io::Result<Map<String, Value>> {
+    let text = match std::fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Map::new()),
+        Err(error) => return Err(error),
+    };
+    serde_json::from_str::<Value>(&text)
+        .ok()
+        .and_then(|value| value.as_object().cloned())
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("{} must contain a JSON object", path.display()),
+            )
+        })
+}
+
+/// Register the lazy Synaptic stdio server in Claude Code's project MCP file.
+pub fn install_mcp_server(repo_root: &Path) -> std::io::Result<PathBuf> {
+    let path = mcp_path(repo_root);
+    let mut config = load_mcp_config(&path)?;
+    let servers = config
+        .entry("mcpServers")
+        .or_insert_with(|| Value::Object(Map::new()))
+        .as_object_mut()
+        .ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("{}.mcpServers must be a JSON object", path.display()),
+            )
+        })?;
+    servers.insert(
+        "synaptic".to_string(),
+        json!({
+            "type": "stdio",
+            "command": "synaptic",
+            "args": ["serve", "--lazy-tools"]
+        }),
+    );
+    write_settings(&path, &config)?;
+    Ok(path)
+}
+
+/// Remove only Synaptic's Claude Code MCP entry, preserving foreign config.
+pub fn uninstall_mcp_server(repo_root: &Path) -> std::io::Result<()> {
+    let path = mcp_path(repo_root);
+    if !path.exists() {
+        return Ok(());
+    }
+    let mut config = load_mcp_config(&path)?;
+    let Some(servers) = config.get_mut("mcpServers").and_then(Value::as_object_mut) else {
+        return Ok(());
+    };
+    if servers.remove("synaptic").is_none() {
+        return Ok(());
+    }
+    if servers.is_empty() {
+        config.remove("mcpServers");
+    }
+    if config.is_empty() {
+        std::fs::remove_file(path)
+    } else {
+        write_settings(&path, &config)
+    }
 }
 
 /// Set `settings.hooks.PreToolUse` to `hooks`, creating the nested objects as
@@ -232,5 +301,62 @@ mod tests {
         assert!(BASH_HOOK_COMMAND.contains("synaptic-out/graph.json"));
         assert!(BASH_HOOK_COMMAND.contains("synaptic query"));
         assert!(READ_HOOK_COMMAND.contains("synaptic explain"));
+    }
+
+    #[test]
+    fn claude_mcp_install_is_lazy_idempotent_and_preserves_foreign_servers() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        std::fs::write(
+            mcp_path(root),
+            r#"{"mcpServers":{"other":{"command":"other-server","args":[]}},"keep":true}"#,
+        )
+        .unwrap();
+
+        install_mcp_server(root).unwrap();
+        install_mcp_server(root).unwrap();
+        let config = load_mcp_config(&mcp_path(root)).unwrap();
+        assert_eq!(config["keep"], json!(true));
+        assert_eq!(
+            config["mcpServers"]["other"]["command"],
+            json!("other-server")
+        );
+        assert_eq!(
+            config["mcpServers"]["synaptic"]["args"],
+            json!(["serve", "--lazy-tools"])
+        );
+    }
+
+    #[test]
+    fn claude_mcp_uninstall_removes_only_synaptic() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        std::fs::write(
+            mcp_path(root),
+            r#"{"mcpServers":{"other":{"command":"keep"}}}"#,
+        )
+        .unwrap();
+        install_mcp_server(root).unwrap();
+        uninstall_mcp_server(root).unwrap();
+        let config = load_mcp_config(&mcp_path(root)).unwrap();
+        assert!(config["mcpServers"].get("synaptic").is_none());
+        assert_eq!(config["mcpServers"]["other"]["command"], json!("keep"));
+
+        std::fs::remove_file(mcp_path(root)).unwrap();
+        install_mcp_server(root).unwrap();
+        uninstall_mcp_server(root).unwrap();
+        assert!(!mcp_path(root).exists());
+    }
+
+    #[test]
+    fn claude_mcp_install_refuses_malformed_foreign_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = mcp_path(dir.path());
+        std::fs::write(&path, "{ not json").unwrap();
+        assert_eq!(
+            install_mcp_server(dir.path()).unwrap_err().kind(),
+            std::io::ErrorKind::InvalidData
+        );
+        assert_eq!(std::fs::read_to_string(path).unwrap(), "{ not json");
     }
 }

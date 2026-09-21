@@ -571,7 +571,7 @@ pub fn rebuild_with_detect(
         .collect();
 
     // Build flags and included headers can affect any configured translation unit.
-    // ponytail: rebuild configured projects; compiler dependency files can narrow this later.
+    // Rebuild configured projects; compiler dependency files can narrow this later.
     let changes = if project.has_build_configuration()
         && matches!(changes, ChangeSet::Incremental(paths) if !paths.is_empty())
     {

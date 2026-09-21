@@ -4,8 +4,8 @@
 queries the graph before falling back to broad file exploration. It writes a
 per-platform skill file (where the platform has one), injects an always-on
 instructions section into the platform's instructions file, and (for Claude
-Code) registers `PreToolUse` hooks in `.claude/settings.json`. For **Codex** it
-also registers a native MCP server and a `SessionStart` hook, with a `--global`
+Code) registers the lazy MCP server in `.mcp.json` plus `PreToolUse` hooks in
+`.claude/settings.json`. For **Codex** it also registers a native MCP server and a `SessionStart` hook, with a `--global`
 mode for the Codex desktop app (see [Codex](#codex)). All writes are idempotent
 and target the current working directory.
 
@@ -37,7 +37,7 @@ synaptic install codex --global   # Codex desktop app (global ~/.codex)
 
 | Argument(s) | Skill file | Always-on instructions file | Extra wiring |
 |---|---|---|---|
-| `claude` | `.claude/skills/synaptic/SKILL.md` | `CLAUDE.md` | `PreToolUse` hooks in `.claude/settings.json` |
+| `claude` | `.claude/skills/synaptic/SKILL.md` | `AGENTS.md` | Lazy MCP server in `.mcp.json` + `PreToolUse` hooks |
 | `codex` | none | `AGENTS.md` | MCP server + `SessionStart` hook in `.codex/` (project), or global MCP with `--global` |
 | `agents`, `agent`, `opencode` | none | `AGENTS.md` | none |
 | `gemini` | none | `GEMINI.md` | none |
@@ -79,10 +79,14 @@ parent directories (for example `.github/`, `.kilocode/rules/`) are created.
    created if none exists. The `<!-- synaptic-skill vX.Y.Z -->` line stamps the
    version that produced the block (see
    [Versioning and auto-refresh](#versioning-and-auto-refresh)); the Claude
-   `SKILL.md` carries the same stamp just under its frontmatter.
+   `SKILL.md` carries the same stamp just under its frontmatter. Installing or
+   refreshing the Claude integration migrates Synaptic's marked block from
+   legacy `CLAUDE.md` installs to `AGENTS.md` without changing other
+   `CLAUDE.md` content.
 
-3. **PreToolUse hooks** (Claude only): two entries merged into
-   `.claude/settings.json` under `hooks.PreToolUse` (see below).
+3. **MCP server + PreToolUse hooks** (Claude only): `.mcp.json` registers
+   `synaptic serve --lazy-tools`, preserving foreign MCP servers. Two entries
+   are merged into `.claude/settings.json` under `hooks.PreToolUse` (see below).
 
 4. **MCP server + hook** (Codex only): an MCP server registration and a
    `SessionStart` hook, in the project `.codex/` or the global `~/.codex/`
@@ -100,6 +104,9 @@ Install can be run repeatedly without piling up duplicates:
   so a reinstall keeps exactly two. Foreign hooks and unrelated top-level
   settings keys are preserved. A corrupt `settings.json` is treated as empty and
   rewritten.
+- The `.mcp.json` writer replaces only `mcpServers.synaptic`, preserving foreign
+  servers and top-level keys. It refuses malformed JSON rather than overwriting
+  configuration it cannot safely merge.
 
 ## Versioning and auto-refresh
 
@@ -126,8 +133,8 @@ without you re-running `install` in every repo.
   prose is always preserved regardless. Entries whose files are gone are dropped.
 
 Refresh covers the Markdown skill artifacts (the `SKILL.md` and the always-on
-blocks). Codex MCP config / hooks and Claude `settings.json` hooks are not
-auto-rewritten — re-run `synaptic install` to refresh those.
+blocks). Codex MCP config / hooks and Claude `.mcp.json` / `settings.json` wiring
+are not auto-rewritten — re-run `synaptic install` to refresh those.
 
 ## Codex
 
@@ -139,7 +146,8 @@ configuration from different places**, so there are two modes.
 Writes, under the current repo:
 
 - **`.codex/config.toml`** -- a `[mcp_servers.synaptic]` entry that launches
-  `synaptic serve` (stdio MCP). No `--graph`, so it resolves
+  `synaptic serve --lazy-tools` (stdio MCP) with a seven-name `enabled_tools`
+  allowlist. No `--graph`, so it resolves
   `synaptic-out/graph.json` relative to the server's working directory.
 - **`.codex/hooks.json` + `.codex/synaptic-hook.py`** -- a `SessionStart` hook
   that injects model-visible context (once per session, only when a graph
@@ -162,7 +170,8 @@ servers only from the global `~/.codex/config.toml`. For app users, `--global`
 registers a per-repo server there instead:
 
 - **`~/.codex/config.toml`** gains `[mcp_servers.synaptic-<repo>]` (named after
-  the repo dir, sanitized), launching `synaptic serve --graph <absolute path>`.
+  the repo dir, sanitized), launching `synaptic serve --lazy-tools --graph
+  <absolute path>` with the same `enabled_tools` allowlist.
   The absolute `--graph` is required because the app gives a server no per-project
   working directory. Your other servers and the `[projects.*]` trust list are
   preserved.
@@ -210,8 +219,8 @@ synaptic uninstall --all
 any), tidies now-empty skill directories, and strips the always-on marker block
 from the instructions file. If nothing else remains in that file, the file is
 removed; otherwise the surrounding prose and its blank-line spacing are
-preserved. For Claude it also removes exactly the Synaptic `PreToolUse` hooks,
-leaving foreign hooks intact. For Codex it removes the project `.codex/` server,
+preserved. For Claude it also removes exactly the Synaptic `.mcp.json` server and
+`PreToolUse` hooks, leaving foreign entries intact. For Codex it removes the project `.codex/` server,
 hook, and script (or, with `--global`, this repo's `synaptic-<repo>` entry from
 `~/.codex/config.toml`), preserving foreign servers. `--all` uninstalls from
 every supported platform (project scope).

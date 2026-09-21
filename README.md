@@ -6,647 +6,155 @@
   <a href="https://github.com/ColinVaughn/Synaptic/releases"><img src="https://img.shields.io/github/v/release/ColinVaughn/Synaptic?style=for-the-badge" alt="Latest release"></a>
 </p>
 
-<p align="center">
-  <a href="https://discord.gg/ytX7R2PbNz"><img src="https://invidget.switchblade.xyz/ytX7R2PbNz" alt="Synaptic Discord invite"></a>
-</p>
+**Give your coding assistant a map of the codebase, not a pile of files.**
 
-Synaptic is a source-grounded code maintenance platform built around three connected systems:
-**API maintenance**, **repository memory**, and a persistent **knowledge graph**. Together they
-let an engineer or AI assistant understand what the code does, remember what has happened to
-it, and make bounded repairs without guessing.
+Synaptic maps a repository once so you and your coding assistant do not have to rediscover it
+every session. Ask how a system works, what depends on a symbol, or what a change may break.
+The answers come from a persistent, source-grounded knowledge graph, available from the CLI
+or through MCP. Synaptic can also remember past changes and plan small, reviewable API and
+dependency repairs.
 
-1. **API maintenance** keeps external dependencies and SDKs safe to change. Dependency bots
-   can tell you a new version exists; Synaptic inventories the APIs your code actually uses,
-   detects source-grounded breaking changes, finds the affected call sites, plans a bounded
-   repair in an isolated worktree, verifies graph invariants and selected tests, and only
-   publishes a draft PR when the evidence is complete.
-2. **Repository memory** preserves the history that usually lives in people, chats, failed
-   branches, incident notes, and old PRs. It records previous changes, regressions, decisions,
-   procedures, verification results, and external artifacts as source-linked evidence, then
-   retrieves that memory through the CLI or MCP server so future work starts with context
-   instead of archaeology.
-3. **The knowledge graph** is the structural map underneath everything. Synaptic turns any
-   folder, monorepo, or federated set of repositories into a persistent, queryable graph of
-   symbols, files, resources, calls, imports, inheritance, SQL usage, dynamic-dispatch hazards,
-   and cross-repo edges across 30+ languages with
-   [tree-sitter](https://tree-sitter.github.io/).
+Code extraction is local and deterministic. Synaptic ships as a single Rust binary with no
+runtime, database, account, or API key required.
 
-The graph answers architectural questions, traces reverse impact ("what would this change
-break?"), forecasts and speculatively runs changes before you make them, plans safe refactors,
-diffs architecture across git history, and audits SQL for performance and security. Memory adds
-what the graph cannot infer from the current tree alone. API maintenance uses both to turn
-upstream change into evidence-backed repair plans. The engine and terminal workflow ship as a
-single static Rust binary (`synaptic`) with no runtime or interpreter. An optional native
-`synaptic-ui` addon provides visual single-repository, workspace federation, and MCP setup plus a
-searchable Tools view for every Synaptic task on Windows, Linux, and macOS. Synaptic writes
-machine-readable graphs alongside human-readable reports and 2D/3D/SVG
-visualizations, and exposes an MCP server so an AI coding assistant can use these systems before
-grepping or reading files.
+[Documentation](https://github.com/ColinVaughn/Synaptic/wiki) |
+[Quickstart](https://github.com/ColinVaughn/Synaptic/wiki/Quickstart) |
+[Benchmarks](BENCHMARKS.md) |
+[Discord](https://discord.gg/ytX7R2PbNz)
 
-## Architecture explorer
+## Get started
 
-Turn an existing `graph.json` into a self-contained, offline architecture map:
+Install the latest checksummed release:
+
+```sh
+# macOS / Linux
+curl --proto '=https' --tlsv1.2 -LsSf https://raw.githubusercontent.com/ColinVaughn/Synaptic/main/install.sh | sh
+
+# Windows PowerShell
+irm https://raw.githubusercontent.com/ColinVaughn/Synaptic/main/install.ps1 | iex
+```
+
+Then run Synaptic from a repository:
+
+```sh
+synaptic extract .                         # build synaptic-out/graph.json
+synaptic query "how does authentication work?"
+synaptic affected parse_config             # what could this change break?
+```
+
+Extraction honors `.gitignore` and `.synapticignore`, skips common secret files, and stays
+offline unless you explicitly enable a network-backed feature.
+
+## Connect your coding assistant
+
+```sh
+synaptic install claude                    # Claude Code
+synaptic install codex                     # Codex CLI
+synaptic install codex --global            # Codex desktop app
+```
+
+Claude and Codex load only a small set of tools at startup, then find the rest on demand. This
+keeps prompts smaller without hiding capabilities. Gemini, Cursor, Copilot, OpenCode, Kilo,
+and generic `AGENTS.md` clients are supported too. See
+[Assistant Integration](https://github.com/ColinVaughn/Synaptic/wiki/Assistant-Integration).
+
+## What it does
+
+| Need | What Synaptic provides |
+|---|---|
+| Understand the code | Symbols, calls, imports, inheritance, resources, SQL, and cross-language boundaries in one graph |
+| Find impact | Callers, references, reverse dependencies, dynamic-dispatch hazards, and affected tests |
+| Change code safely | Change forecasts, refactor plans, architecture diffs, and optional verification in an isolated worktree |
+| Remember the past | Source-linked history from commits, decisions, incidents, reviews, CI, and previous attempts |
+| Maintain dependencies | API contract tracking and vulnerability evidence with small, reviewable repair workflows |
+
+Synaptic supports dozens of languages, incremental updates, multi-repository federation,
+structural search, SQL auditing, graph-aware PR review, and exports for GraphML, Cypher,
+Graphviz, Obsidian, and Markdown. Detailed capabilities live in the
+[documentation](https://github.com/ColinVaughn/Synaptic/wiki), keeping this page focused on getting started.
+
+## See the architecture
 
 ```sh
 synaptic chart
 ```
 
-The overview ranks source-grounded communities and their strongest exact relationships. Search,
-switch themes, or open any subsystem without rebuilding the graph.
+This creates a self-contained architecture map from the graph. Open a subsystem, select a
+symbol, and follow its real incoming and outgoing relationships without a server.
 
 <p align="center">
   <img src="assets/readme/synaptic-chart-overview.gif" alt="Synaptic architecture chart switching themes and opening a subsystem" width="1200">
 </p>
 
-Inside a subsystem, select a symbol to isolate its real one-hop dependencies. The inspector shows
-incoming and outgoing relations, and each row continues directly to the connected symbol.
+## Built to save context
 
-<p align="center">
-  <img src="assets/readme/synaptic-chart-drilldown.gif" alt="Synaptic architecture chart tracing source-backed symbol relationships" width="1200">
-</p>
+Synaptic returns the relevant slice of a graph instead of loading whole source files into an
+assistant's context. In the checked-in token benchmark, full graph answers used 27-38x fewer
+tokens than reading the source files referenced by those answers. That is a context-compression
+measurement, not a promise about total task cost. The methodology and raw results are in
+[BENCHMARKS.md](BENCHMARKS.md#agent-token-efficiency-and-standard-retrieval).
 
-The desktop app's **App** screen checks the GitHub Release published by the release workflow,
-downloads the matching archive, verifies its published checksum, and updates the bundled
-executables. **Add to applications** installs it for the current user and makes it searchable from
-Windows Start, macOS Applications, or the Linux application menu without administrator access.
-Removing the desktop installation does not touch project data, graphs, settings, or a separately
-installed CLI.
+## Common commands
 
-The desktop app follows the operating system's light or dark preference on first launch and saves
-the user's choice after that.
-
-If someone downloads only `synaptic-ui`, its first-run screen automatically downloads the
-verified command tools from the latest GitHub Release and places them beside the app. No terminal,
-PATH change, or system-wide install is required.
-
-If you do not want to run the MCP server yourself, **Synaptic Cloud** is a paid hosted MCP
-service for using Synaptic with your projects: [synapticgraph.com](https://synapticgraph.com/).
-For commit-triggered graph sync and verified API or dependency draft repairs, follow the
-[GitHub automation guide](https://synapticgraph.com/docs/github-automation).
-
-## Use Synaptic with a project
-
-Start from any repository root. Synaptic writes its index and reports to `synaptic-out/`
-and keeps project-specific configuration under `.synaptic/`.
-
-The easiest path is to ask your AI coding agent to install and configure Synaptic for
-the current repository, then have it follow the
-[Installation](https://github.com/ColinVaughn/Synaptic/wiki/Installation),
-[Quickstart](https://github.com/ColinVaughn/Synaptic/wiki/Quickstart), and
-[Assistant Integration](https://github.com/ColinVaughn/Synaptic/wiki/Assistant-Integration)
-guides. If you prefer to do it yourself, the manual path is:
-
-```sh
-# 1. Install the binary from this repository
-cargo install --path bin/synaptic
-
-# Or download a prebuilt binary from GitHub Releases, then confirm it works
-synaptic --version
-
-# Optional: install and launch the native setup UI
-cargo install --path bin/synaptic-ui
-synaptic-ui
-
-# 2. Build the first graph for your project
-cd path/to/your/project
-synaptic extract .
-
-# 3. Ask structural questions without rereading the whole codebase
-synaptic query "authentication flow"
-synaptic affected parse_config
-synaptic search --pattern god-class
-
-# 4. Keep the graph current as the project changes
-synaptic update
-synaptic watch
-synaptic hook install
-```
-
-For a normal project setup, add a `.synapticignore` if there are generated, vendored,
-or sensitive paths you do not want indexed; `extract` also honors `.gitignore` and skips
-common secrets like `.env` and key files. Use `synaptic hook install` when you want Git
-commits, checkouts, and graph merges to keep `synaptic-out/graph.json` fresh automatically.
-
-Once the graph exists, turn on the higher-level systems as needed:
-
-```sh
-# Repository memory: ingest history, docs, decisions, and outcomes
-synaptic memory refresh --root .
-synaptic memory search "previous auth migration"
-
-# API maintenance: configure monitored APIs and check real usage
-synaptic api init
-synaptic api discover --json
-synaptic api coverage --json
-synaptic api scan --offline --json
-
-# AI assistant integration: serve the graph and memory over MCP
-synaptic serve
-synaptic install codex --global
-```
-
-The safest mental model: run `extract` first, use `query` / `affected` / `search` to explore,
-add hooks or `watch` when the project is active, then enable `memory` and `api` workflows when
-you want Synaptic to preserve history or maintain external contracts.
-
----
-
-## Why
-
-- **Structural clarity.** God nodes, surprising cross-module connections, import cycles, and
-  community structure are computed for you.
-- **Impact and foresight.** Reverse impact, change forecasting, and speculative test runs
-  answer "what depends on this?" and "what would this change break?" before you touch the code.
-- **Token economy.** Querying a compact graph costs a fraction of feeding raw files to an
-  LLM, so an assistant can answer those questions without loading the repo.
-- **Confidence you can audit.** Every inferred relationship is tagged `EXTRACTED`,
-  `INFERRED`, or `AMBIGUOUS`.
-- **Scales past one repo.** A workspace can federate many repos with real cross-repo edge
-  resolution (export surfaces plus import / tsconfig / module-federation aliases).
-- **Offline by default.** A code-only corpus never makes a network call. The optional
-  semantic pass over docs and papers is the only feature that needs an API key.
-
-## Highlights
-
-- **30+ languages** via tree-sitter, each built and tested in isolation in CI, plus
-  regex-based extractors for a few formats and script extraction for Vue/Svelte/Astro and
-  Razor/Blazor. See [Languages](https://github.com/ColinVaughn/Synaptic/wiki/Languages).
-- **One command to a full graph** plus 2D, 3D, and SVG visualizations, a Markdown report,
-  and GraphML / Cypher / DOT / Obsidian / wiki exports. See [Output Formats](https://github.com/ColinVaughn/Synaptic/wiki/Output-Formats).
-- **Graph queries**: relevant-subgraph search, shortest path, node explanation,
-  reverse-impact ("what depends on this"), find-all-references (`synaptic references` /
-  the `find_references` tool: everywhere a symbol is used, including the imports and
-  inheritance a caller-only view misses), and per-file symbol outlines. See
-  [Querying](https://github.com/ColinVaughn/Synaptic/wiki/Querying).
-- **Dynamic-dispatch awareness**: event buses (Node EventEmitter, DOM CustomEvent, C# events)
-  and Electron IPC link a publisher to its subscriber through a channel node, so a handler reached
-  only across the bus is not a phantom 0-caller. Reflection and dynamic dispatch that cannot be
-  resolved statically (by-name lookups, dispatch tables, `eval`, dynamic import, .NET/Python/JVM
-  reflection) are cataloged so a "0 dependents" answer is never mistaken for "safe to change":
-  `synaptic hazards` (and the `dynamic_hazards` MCP tool) list the sites, and `affected` attaches a
-  caveat when a symbol is reachable only dynamically.
-- **Time-travel diff**: `synaptic diff <rev1> [rev2]` (or `--since <date>`) reports how the
-  graph changed between two git revisions, added/removed dependencies, removed APIs,
-  architectural drift, new cycles, and hotspots, with a Markdown or self-contained HTML report.
-- **Architectural search (SYNQL)**: `synaptic search` runs a small Cypher-inspired query
-  language over the graph, matching on structure (kind, visibility, LOC, fan-in/out,
-  variable-length paths) with `count(...)` aggregation, `--explain`, saved queries, and a
-  library of named patterns (singleton, factory, observer, service-locator, god-class). Not
-  text search. `synaptic search --file <path>` lists every symbol defined in a file, ordered
-  by line, with no query needed.
-- **Safe refactor**: `synaptic refactor rename` / `move` / `extract` emit a confidence-scored
-  execution plan (`plan.json` + `plan.md`) for an AI agent to apply, then `refactor verify`
-  rebuilds and checks the graph held (the definition moved/renamed, no references lost, no new
-  cycles). Synaptic never edits source itself.
-- **Change forecasting and speculative execution**: `synaptic predict` forecasts a change's
-  blast radius, public APIs at risk, at-risk tests, new cycles, risk score, and a verify
-  checklist before you edit (`--edit "<kind>:<symbol>"` forecasts a described edit before any
-  code is written); `synaptic speculate` then applies the change in a throwaway git worktree
-  and actually runs the at-risk tests plus a build/type-check, reporting real pass/fail — the
-  ground-truth half of prediction; and `synaptic eval replay` replays history to score forecast
-  quality against git ground truth (co-edited tests, removed APIs), turning prediction accuracy into
-  a CI-gateable metric. See
-  [Commands](https://github.com/ColinVaughn/Synaptic/wiki/Commands).
-- **SQL performance & security audit**: `synaptic sql audit` flags row-level-security gaps,
-  over-broad grants, likely SQL injection, missing indexes on filter/foreign-key columns,
-  `SELECT *`, non-sargable predicates, N+1 patterns, and missing primary keys over the SQL-aware
-  graph (extraction now models columns, indexes, RLS policies, and grants, and links application
-  queries to the tables they touch). `synaptic sql advise --query "<sql>"` critiques a candidate
-  query before you write it, cross-referenced against the graph's tables/indexes/RLS. See
-  [SQL Auditing](https://github.com/ColinVaughn/Synaptic/wiki/SQL-Auditing).
-- **Resource graph** (universal, on by default): data/resource files (data JSON and `.mcmeta`
-  under `assets/`, `data/`, and generated dirs) are indexed as graph nodes, and reference-like
-  strings inside them bind to the file, resource (by path-derived id like `ns:path`), or code
-  symbol they name — so `affected` and `query_graph` span code *and* resources. A generated
-  resource that duplicates a hand-authored one at the same logical path gets a `shadows` edge
-  (surfaced by `readiness_audit`). Framework-agnostic — a Minecraft `ResourceLocation` is just
-  one instance of the logical-id shape. Localization JSON also contributes a bounded set of
-  key-only search aliases (never translated prose), so message catalogs are discoverable
-  without one graph node per translation. `extract --no-resources` restores the code-only graph.
-- **Port/readiness audit**: `synaptic audit readiness` ranks likely port blockers from graph,
-  source, and config signals: framework sentinel returns, placeholders/stubs,
-  generated-resource noise, and project metadata. The MCP `readiness_audit` tool exposes the
-  same structured report.
-- **MCP server** (stateless protocol 2026-07-28 with legacy compatibility through
-  2025-11-25) exposing 30 core tools, five vulnerability tools, and five
-  read-only repository-memory tools over stdio or HTTP:
-  subgraph search, source reading, reverse-impact, find-all-references, dynamic-dispatch hazards,
-  PR/working-tree blast radius, change forecasting, predictive test selection, edit-impact prediction,
-  structural search, time-travel diff, plan-only rename, and SQL audit/advise, plus prompts, completions,
-  resource subscriptions, and structured tool output. See
-  [MCP Server](https://github.com/ColinVaughn/Synaptic/wiki/MCP-Server).
-- **Source-grounded repository memory**: a temporal overlay for previous
-  changes, failed attempts, regressions, decisions, procedures, verification,
-  external issue/PR/CI/incident artifacts, semantic community summaries, and
-  revision-aware file/symbol lineage. Git hooks capture exact commits and
-  refresh knowledge; principal policy, compact/federated stores, checksummed
-  team bundles, retrieval benchmarks, and aggregate impact evidence are built
-  into the CLI and MCP surface.
-  See [Repository Memory](https://github.com/ColinVaughn/Synaptic/wiki/Repository-Memory).
-- **Self-maintaining API workflows**: `synaptic api` inventories SDK versions,
-  discovers contracts, records coverage gaps, detects source-grounded breaking
-  changes, localizes affected call sites, and prepares bounded repairs in an
-  isolated worktree. Verification fails closed on incomplete evidence, and only
-  the explicit `publish` stage can create or update an idempotent draft PR. See
-  [API maintenance](docs/procedures/api-maintenance.md).
-- **Dependency vulnerability management**: `synaptic vuln` reads every lockfile in
-  a repository across 12 package ecosystems, matches resolved versions against an
-  OSV corpus, and decides whether each advisory actually applies here rather than
-  stopping at a version match. Findings carry an evidence ladder, a dependency
-  path, a CVSS-derived priority, graph-backed call sites and entry-point
-  exposure, and a remediation plan; applicable findings with a fixed target can
-  become bounded, isolated repairs whose patched dependency resolution and
-  repository tests must pass before Synaptic can create one deterministic draft
-  GitHub PR or GitLab MR. Checksummed export/import keeps repair and provider
-  credentials separated, and Synaptic never approves or merges. Accepted risks
-  are time-boxed and expire on their own. Five MCP tools let assistants check packages, run a
-  graph-backed scan, inspect exposure evidence, and request a bounded repair
-  hand-off. Whole-repository scans stay local by default; an agent must opt in
-  before the dependency list is sent to OSV. See
-  [Vulnerability Management](https://github.com/ColinVaughn/Synaptic/wiki/Vulnerability-Management).
-- **Incremental rebuilds**, file watching, and git hooks keep the graph current. See
-  [Incremental Updates](https://github.com/ColinVaughn/Synaptic/wiki/Incremental-Updates).
-- **Graph-aware PR dashboard** with blast radius and merge-order conflict detection. See
-  [PR Dashboard](https://github.com/ColinVaughn/Synaptic/wiki/PR-Dashboard).
-
----
-
-## Token economy
-
-A core payoff of querying a compact graph is **reading a small answer instead of the whole
-codebase**. `query_graph` defaults to a terse, ranked list of the most relevant symbols (a
-few hundred tokens); pass `full=true` for the whole subgraph with its edges. The figures
-below measure a *full* subgraph response (at a 2,000-token budget) on Synaptic's own source
-(199 Rust files, 56,408 lines, **510,966** `cl100k` tokens) -- one such answer to a
-structural question is **~1,950 tokens**, versus reading the source files it actually touches:
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/token-economy-dark.svg">
-  <img alt="A Synaptic query uses about 31x fewer tokens than reading the source files it points to: roughly 1,950 versus 60,900" src="assets/token-economy.svg">
-</picture>
-
-Across six questions spanning different subsystems, querying the graph used **27-38x fewer
-tokens** (about **31x overall**) than reading the files the answer references:
-
-| Question | Query response | Read the files | Fewer tokens |
-|---|--:|--:|--:|
-| http request handling | 1,804 | 48,803 | 27x |
-| session create / reap | 1,974 | 65,578 | 33x |
-| query_graph subgraph  | 2,011 | 53,759 | 27x |
-| extraction walker     | 1,977 | 70,443 | 36x |
-| PR fetch / rank        | 1,926 | 73,231 | 38x |
-| incremental merge     | 2,010 | 53,440 | 27x |
-
-A query response stays small no matter how big the repo gets (it is capped by the token
-budget), so the ratio grows with the codebase. Note the `graph.json` index itself is large
-because it encodes every symbol and edge; you never load it into context, you query it and
-get back only the slice above.
-
-**Reproducible.** Tokens are exact `cl100k_base` counts via
-`cargo run -p synaptic-server --example tokcount`. The baseline is the unique source files
-referenced by the result (whole files, the conservative grep-then-read case; it does not
-count the dead-end files you would open without the graph). Run `synaptic extract .` on any
-repo and compare for yourself. This is a context-compression measurement, not an end-to-end
-agent-savings claim; the paired SWE-bench/BEIR methodology is in [BENCHMARKS.md](BENCHMARKS.md#agent-token-efficiency-and-standard-retrieval).
-
-## Advanced-tool performance
-
-The analysis tools answer in milliseconds because they run over the in-memory graph, not the
-source. Criterion micro-benchmarks (dev machine; run `cargo bench -p synaptic-synql -p synaptic-refactor`):
-
-| Operation | Workload | Time |
-|---|---|--:|
-| SYNQL property query (`search`) | `WHERE`/`loc`/`fan_out` over a 2,000-node graph | **~0.47 ms** |
-| SYNQL relationship-pattern join (`search`) | one-hop join over a 2,000-node graph | **~0.97 ms** |
-| Safe-refactor rename plan (`refactor rename`) | hot symbol, ~120 call sites across 40 files, incl. the textual scan | **~4.9 ms** |
-
-The 0.6.3 graph-pipeline audit added dedicated Criterion coverage for construction,
-incremental comparison, and federation (`cargo bench -p synaptic-graph -p
-synaptic-incremental -p synaptic-workspace`). On the audit fixtures, one-pass
-16 x 500-node federation measured **136.1 -> 6.07 ms**, a 10k-node topology
-comparison **54.92 -> 9.77 ms**, and a 1,000-site duplicate edge **240.74 ->
-0.56 ms**. These are machine-dependent micro-benchmarks; the committed fixtures
-and growth curves are the reproducible evidence.
-
-Time-travel `diff` is build-bound rather than query-bound: the graph delta itself is
-near-instant, and the cost is building each revision in a throwaway git worktree. Built
-graphs are cached per commit SHA under `synaptic-out/history/`, so a repeat diff of the same
-commits returns immediately and only the working-tree side is rebuilt.
-
-## Accuracy
-
-The token study above is a smoke test on one repo. The relationships Synaptic extracts are
-validated separately, against a **hand-labeled corpus** of mini-repos whose true call edges,
-test linkages, blast radii (including distractor nodes that must *not* be flagged), and
-cross-language couplings (including look-alikes that must *not* connect) are written out by
-hand in a `ground_truth.toml`. A preflight fails the run if any labeled symbol does not resolve,
-so a dropped node becomes a loud failure rather than a quietly smaller denominator. Every number
-below is exact set-comparison against those labels, reproducible with `synaptic eval corpus`:
-
-| Fixture | Family | Call P/R/F1 | Aff-test rec | Blast rec / excl / size | Cross P/R/F1 |
-|---|---|---|---|---|---|
-| systems-rust | systems-rust | 100/50/66 | — | 100% / 100% / 1.0 | — |
-| scripting-python | scripting-python | 100/100/100 | 100% | 100% / 100% / 2.0 | — |
-| web-ts | web-ts | 100/100/100 | — | 100% / 100% / 1.0 | — |
-| oo-java | oo-java | 100/100/100 | — | 100% / 100% / 1.0 | — |
-| systems-go | systems-go | 100/100/100 | — | 100% / 100% / 1.0 | — |
-| deep-python (multi-hop) | scripting-python | 100/100/100 | 100% | 100% / 100% / 3.0 | — |
-| cross-lang-ts-rust | cross-lang | — | — | — | 100/100/100 |
-| cross-lang-grpc | cross-lang | — | — | — | 100/100/100 |
-| cross-lang-queue | cross-lang | 100/100/100 | — | — | 100/100/100 |
-| cross-lang-pyo3 | cross-lang | 100/100/100 | — | — | 100/100/100 |
-| cross-lang-ws | cross-lang | 100/100/100 | — | — | 100/100/100 |
-
-Across 11 fixtures / 6 language families / 42 labeled symbols (all resolved): pooled call edges
-**precision 100% / recall 94% / F1 97%** over 18 labeled edges; blast-radius **recall 100% with
-0 distractors leaked**; affected-test **recall 100%** over the labeled linkages with the one
-labeled *unrelated* test correctly **not** selected; cross-language **precision 100% / recall
-100% / F1 100%** over 6 labeled couplings with 6 distractor couplings (look-alike routes, a
-wrong-service gRPC stub, an unregistered PyO3 helper, ...) correctly **not** connected. Reading
-the numbers honestly:
-
-- **No false call edges were observed** in this 18-edge corpus (precision 100%); that is a
-  result on the corpus, not a guarantee at scale.
-- **Recall is 100%** for Python/TypeScript/Java/Go, which resolve cross-file calls. The **50%**
-  on Rust is real and expected: Rust call resolution is intra-file, so a module-qualified
-  cross-file call is a true miss. Cross-file *reachability* is still preserved through `imports`
-  edges, which is why blast-radius recall stays 100%.
-- **Blast radius is scored for noise, not just misses:** each seed labels distractor nodes that
-  must stay out, and none leaked (100% exclusion); the average reported impact-set size equals
-  the true affected-set size, so the walk is not over-broad.
-- **Affected-test selection is multi-hop:** the `deep-python` fixture changes a leaf three call
-  hops below its test and still selects it, while a deliberately unrelated test is excluded
-  (so recall is not bought with precision).
-- **Cross-language precision is earned across five boundary kinds:** a TypeScript
-  `fetch("/session")` connects to the Rust axum handler that serves it (and a mounted
-  `/api/users` client reaches its prefix-composed route); a Python gRPC client reaches its tonic
-  server; a Kafka producer reaches its consumer; a Python `import` reaches its PyO3-exported Rust
-  function; a JS WebSocket command reaches its C# handler — while every look-alike distractor
-  (a `/sessions` path, a wrong-service stub, a wrong topic, an *unregistered* PyO3 helper, an
-  unhandled message) is correctly left unconnected.
-
-The corpus is intentionally small and hand-verified; it validates extraction *correctness* on
-representative shapes, not internet-scale coverage. The [scale](#scale) section measures real
-repositories. See [BENCHMARKS.md](BENCHMARKS.md) for methodology and the ground-truth format.
-
-### Prediction calibration
-
-The change-forecast layer attaches a confidence to each predicted co-change. `synaptic eval
-calibrate` measures whether that confidence is meaningful: it walks recent history, and for each
-commit uses every changed file as a seed, asks the predictor (trained only on prior commits)
-which files should co-change, then scores each prediction's confidence against what actually
-changed. It reports a **reliability table** (predicted vs. observed hit rate per confidence
-bin), a **Brier score**, the **Brier skill score** against an always-guess-the-base-rate
-baseline (so the Brier number is interpretable), and **expected calibration error**.
-
-This is a per-repo property: confidence reflects each repo's commit habits, so run it on yours.
-On this repo's own (squash-heavy, synthetic) history the skill score is **negative** — co-change
-prediction there is *worse than guessing the base rate*, because squashed commits touch many
-files at once and inflate apparent co-change. That is the metric working: it refuses to dress up
-a predictor that is miscalibrated on this history. Methodology in [BENCHMARKS.md](BENCHMARKS.md).
-
-## Scale
-
-Extraction throughput across real OSS repositories spanning size tiers and language families,
-each cloned at a pinned SHA (`synaptic eval scale`; network + git, opt-in). Each timing is the
-median of 5 reps. The 2026-08-12 run covered **10 repositories, 9 language families, 783,928
-supported LOC, 71,437 nodes, and 111,851 edges** with no skips. Warm throughput ranged from
-44k to 339k LOC/s; median cold-to-warm speedup ranged from 1.4x to 2.8x. The largest checkout
-measured here, Humanizer (476,967 supported LOC), took 7.07s cold and 2.69s warm.
-
-Those are machine-specific development-worktree results, not universal or clean-release
-claims. "Cold" clears Synaptic's AST cache but the checkout and OS file cache were warm;
-incremental timing re-extracts a named unchanged source file and is not patch latency. Full
-method, per-repository results, limitations, exact SHAs, and raw samples are in
-[BENCHMARKS.md](BENCHMARKS.md).
-
-## Extraction quality at scale
-
-Scale measures how *fast* extraction runs; a graph that anchored every declaration to the wrong
-line would post identical timings. `synaptic eval quality` measures whether the graph is **right**,
-across **60 pinned repositories covering all 39 shipped languages** (80,061 files, 938,001 nodes),
-using properties that need no hand labels: anchor exactness, parse and recovery health,
-determinism, incremental equivalence, and an independent universal-ctags comparison.
-
-The 2026-08-15 run: **pooled anchor exactness 735,198 / 735,493 (99.96%)**, with **60/60
-repositories deterministic and incrementally equivalent** and no skips. 30 of 39 languages are
-exact on every checked declaration.
-
-The corpus is language-complete by construction — a test fails when a shipped extractor has no
-repository exercising it — and each repository carries pinned bounds, so a regression exits
-non-zero naming the repository and metric. The oracle is published as a symmetric difference,
-never a recall score: ctags is an independent second opinion, not ground truth. Method,
-per-language results, and the defects this benchmark found are in [BENCHMARKS.md](BENCHMARKS.md).
-
-## Install
-
-Synaptic builds with a stable Rust toolchain (pinned to 1.97.1 via
-[rust-toolchain.toml](rust-toolchain.toml)).
-
-```sh
-# From a clone, installs the `synaptic` binary onto your PATH:
-cargo install --path bin/synaptic
-
-# Optional native workspace/MCP setup app (uses `synaptic` from the same directory or PATH):
-cargo install --path bin/synaptic-ui
-
-# ...or build it in-tree:
-cargo build --release -p synaptic -p synaptic-ui
-```
-
-Prebuilt CLI and optional UI binaries for Linux/macOS/Windows are attached to each tagged
-[GitHub Release](../../releases) (see the `release` workflow). Optional integrations are
-behind feature flags (off by default): `pg` (Postgres introspection), `push` (live
-Neo4j/FalkorDB export), and `office` / `gws` / `media` (spreadsheet / Google-Workspace /
-audio-video ingest), e.g. `cargo install --path bin/synaptic --features pg,push`. See
-[Installation](https://github.com/ColinVaughn/Synaptic/wiki/Installation),
-[Desktop UI](https://github.com/ColinVaughn/Synaptic/wiki/Desktop-UI), and
-[Configuration](https://github.com/ColinVaughn/Synaptic/wiki/Configuration).
-
-Once installed, update in place with `synaptic self-update` (verifies a SHA-256
-checksum and prompts before replacing the binary). Opt in to a background
-"update available" notice with `synaptic self-update --enable` — off by default,
-runs at most once a day, and never blocks normal commands. `cargo install` /
-source builds can self-update too, but the swap installs the default-feature
-prebuilt binary.
-
-## Quickstart
-
-```sh
-# 1. Build the graph for the current directory -> synaptic-out/
-synaptic extract .
-
-# 2. Ask the graph a question (returns a relevant subgraph)
-synaptic query "authentication flow"
-
-# 3. What would changing a symbol break? (reverse impact)
-synaptic affected parse_config
-
-# 4. Serve the graph to an AI assistant over MCP
-synaptic serve
-```
-
-`extract` honors `.synapticignore` / `.gitignore` and skips sensitive files (`.env`, keys).
-A code-only corpus runs fully offline; the optional LLM semantic pass over docs and papers
-(`extract --semantic`) needs an API key (e.g. `OPENAI_API_KEY`). See
-[Quickstart](https://github.com/ColinVaughn/Synaptic/wiki/Quickstart).
-
-## Output artifacts (`synaptic-out/`)
-
-| Artifact | What it is |
+| Command | Purpose |
 |---|---|
-| `graph.json` | Full graph (node-link JSON), query it without re-reading files |
-| `GRAPH_REPORT.md` | God nodes, surprising connections, suggested questions, import cycles |
-| `graph.html` | Interactive 2D explorer (search + community color) |
-| `graph-3d.html` | Interactive 3D force graph (search, relation toggles, federation colors) |
-| `graph.svg` | Static layout (Barnes-Hut, component-packed, asset-shaped) |
-| `chart.html` | On-demand architecture map with community-to-symbol drill-down from `synaptic chart` |
-| `graph.graphml` / `graph.cypher` / `graph.dot` | Import into Gephi / Neo4j / Graphviz |
-| `callflow.html` / `tree.html` | Mermaid call-flow + D3 file tree |
-| `obsidian/`, `wiki/` | Obsidian vault / Markdown wiki (with `--obsidian` / `--wiki`) |
+| `synaptic extract .` | Build the graph |
+| `synaptic update` / `synaptic watch` | Keep it current |
+| `synaptic query "..."` | Find the relevant subgraph for a question |
+| `synaptic affected <symbol>` | Trace reverse impact |
+| `synaptic predict <files>` | Forecast risk and select tests |
+| `synaptic speculate <files>` | Verify a change in a throwaway worktree |
+| `synaptic memory search "..."` | Find relevant repository history |
+| `synaptic serve` | Run the MCP server |
 
-## Commands
+Run `synaptic <command> --help` for flags or use the complete
+[command reference](https://github.com/ColinVaughn/Synaptic/wiki/Commands).
 
-| Command | What it does |
-|---|---|
-| `extract [path]` | Build the graph and write `synaptic-out/`. Flags: `--directed`, `--obsidian`, `--wiki`, `--semantic` |
-| `export <format>` | Re-emit a format from an existing `graph.json` (no rebuild) or push live to Neo4j/FalkorDB |
-| `chart` | Create an offline interactive architecture map with source-backed subsystem drill-down. Flags: `--graph`, `--out`, `--repo`, `--max-communities` |
-| `query <text>` | Return a relevance-ranked subgraph (each node scored). Flags: `--max-nodes`, `--repo`, `--dfs`, `--since <ref>` (boost code changed on the branch), `--seed-changed`, `--json` |
-| `path <from> <to>` | Shortest path between two nodes |
-| `explain <node>` | Show a node and its neighbours |
-| `affected <node>` | Nodes that (transitively) depend on a node; adds a caveat when a "0 dependents" symbol is reachable only via dynamic dispatch. Flags: `--depth`, `--relation` |
-| `hazards` | List reflection / dynamic-dispatch sites the graph records, so a "0 dependents" answer is not mistaken for "safe". Flags: `--repo`, `--kind`, `--limit` |
-| `search [synql]` | Structural search via SYNQL or a named `--pattern`. Flags: `--explain`, `--save`/`--saved`, `--json` |
-| `diff <rev1> [rev2]` | Time-travel graph diff between two git revisions. Flags: `--since`, `--report`, `--html`, `--scope` |
-| `refactor <action>` | Plan a safe `rename`/`move`/`extract` for an agent, then `verify` the graph (never edits source) |
-| `predict [paths...]` | Forecast a change before applying it: blast radius, at-risk tests, risk, removed APIs, cycles. Flags: `--base`, `--edit "<kind>:<symbol>"`, `--gate` |
-| `speculate [paths...]` | Run a change for real in a throwaway worktree: at-risk tests + a build/type-check, reporting pass/fail. Flags: `--patch`, `--test-cmd`, `--check-cmd` |
-| `audit readiness` | Static port/readiness audit: ranks framework sentinel returns, placeholders/stubs, generated-resource noise, and project metadata. Flags: `--profile`, `--severity`, `--repo`, `--json` |
-| `sql <action>` | `audit` SQL for performance + security over the SQL-aware graph, or `advise --query "<sql>"` on a candidate query before writing it. Flags: `--severity`, `--explain --db-url` (live EXPLAIN, needs `--features live-explain`) |
-| `eval replay [from]` | Replay history to score forecast quality against git ground truth (CI-gateable). Flag: `--min-test-recall` |
-| `eval quality` | Measure extraction correctness across the pinned real-world corpus, gated against per-repo baselines (network + git, opt-in). Flags: `--language`, `--repo`, `--pin`, `--update-baselines` |
-| `update [paths...]` | Incrementally rebuild after files change (`--full` for a full rebuild) |
-| `watch` | Rebuild automatically as files change (single repo; use `workspace build --watch` for a workspace) |
-| `serve` | Run the MCP server (stdio, or `--http <addr> --api-key <key>`) |
-| `prs [number]` | Graph-aware PR dashboard / detail. Flags: `--triage`, `--conflicts`, `--base`, `--repo` |
-| `workspace <action>` | Multi-repo / monorepo federation (`init`/`add`/`discover`/`build`/`federate`/`coordinate`/`sync`/`status`/`list`). `build --watch` keeps a federated graph live across every member repo |
-| `global <action>` | The cross-repo global graph store (`~/.synaptic`) |
-| `memory <action>` | Ingest, record, search, compact, exchange, and evaluate durable source-grounded repository memory |
-| `api <action>` | Inventory API dependencies, discover contracts, measure coverage, scan changes, assess impact, and safely repair/verify/publish a draft PR |
-| `merge-graphs <graphs...>` | Compose several `graph.json` files into one namespaced graph |
-| `ingest <source>` | Ingest an external source (cargo / mcp / scip / pg / url; `office` / `gws` / `media` behind feature flags) |
-| `hook <action>` | Manage git hooks + the `graph.json` merge driver |
-| `install` / `uninstall [platform]` | Install the Synaptic skill for a host assistant |
-| `cache <action>` | Maintain the on-disk extraction cache |
-| `self-update` | Update the binary from the latest GitHub release (opt-in). Flags: `--enable`/`--disable` (background notice), `--check`, `--yes` |
+## Pick a workflow
 
-The full reference with every flag is in [Commands](https://github.com/ColinVaughn/Synaptic/wiki/Commands). Run
-`synaptic <command> --help` for the flag list at the terminal.
+- **CLI:** the fastest path for local extraction, queries, automation, and MCP.
+- **Desktop:** run `synaptic-ui` for visual repository setup, federation, assistant
+  connection, updates, and the complete command catalog.
+- **Hosted:** [Synaptic Cloud](https://synapticgraph.com/) provides a managed MCP service.
+  See the [GitHub automation guide](https://synapticgraph.com/docs/github-automation) for
+  commit-triggered graph sync and verified repair workflows.
 
-## Use it from an AI assistant (MCP)
-
-```sh
-synaptic serve                                                        # stdio MCP server
-synaptic serve --http 127.0.0.1:8765 --api-key "$SYNAPTIC_API_KEY"   # HTTP server
-synaptic serve --allow-memory-write                                   # opt-in outcome recording
-synaptic serve --memory-principal reviewer \
-  --memory-repository-claim owner/repo                                # scope-filtered memory
-synaptic serve --graph promoted/graph.json --immutable-graph \
-  --expected-graph-sha256 "$GRAPH_SHA256"                             # authenticate exact loaded bytes
-synaptic serve --http 127.0.0.1:0 --ready-file /run/synaptic/ready.json # race-free child startup
-```
-
-The server exposes 30 core tools, five vulnerability tools, and five read-only
-repository-memory tools:
-graph navigation (`query_graph`, `get_node`,
-`get_source`, `get_neighbors`, `get_community`, `god_nodes`, `graph_stats`, `shortest_path`),
-impact analysis (`affected`, `find_callers`, `find_callees`, `find_references`, `dynamic_hazards`,
-`predict_impact`, `affected_tests`, `predict_edit`), federation (`list_repos`, `repo_stats`), change/PR review (`working_changes_impact`,
-`list_prs`, `get_pr_impact`, `triage_prs`), the advanced trio (`structural_search`,
-`time_travel_diff`, plan-only `plan_rename`), port/readiness audit (`readiness_audit`), and SQL auditing (`audit_sql`, `advise_sql`).
-Vulnerability work adds `vuln_check_dependency`, `vuln_findings`,
-`vuln_explain`, `vuln_scan`, and `vuln_brief`; a scan writes only with
-`record: true` and sends dependency coordinates to OSV only with `online: true`.
-On federated graphs, agents select a tag from `list_repos`; scans, findings,
-explanations, ledgers, and repair briefs are then isolated to that member,
-including external checkouts and Git-cached repositories. Artifact-only members
-are explicitly reported as not scannable.
-Memory retrieval adds `search_memory`, `explain_history`,
-`find_similar_change`, `known_pitfalls`, and `explain_decision`;
-`record_change_outcome` is advertised only with `--allow-memory-write`.
-It also serves MCP prompts, argument completions, resource templates and
-subscriptions, and a small REST surface (`/api/stats`, `/api/query`, ...) for non-MCP
-clients. Tool output is tuned to stay token-lean (terse defaults, capped lists); add
-`serve --concise` (or set `SYNAPTIC_CONCISE`) to lower the default sizes further.
-For digest-pinned or read-only deployments, `serve --immutable-graph
---expected-graph-sha256 <HEX>` authenticates the exact byte buffer it parses
-and disables disk hot-reload, source catch-up, and filesystem watching.
-`--http 127.0.0.1:0 --ready-file <PATH>` binds before atomically publishing the
-kernel-assigned address, avoiding port reservation races in process supervisors.
-`synaptic install` wires the graph into a host assistant (a `PreToolUse` hook for
-Claude; a native MCP server for Codex, with `synaptic install codex --global` for the Codex
-desktop app). See [MCP Server](https://github.com/ColinVaughn/Synaptic/wiki/MCP-Server) and
-[Assistant Integration](https://github.com/ColinVaughn/Synaptic/wiki/Assistant-Integration).
-
-## Languages
-
-30+ languages via tree-sitter, each built and tested in isolation in CI: Python,
-JavaScript/TypeScript (+ JSX/TSX, Vue/Svelte/Astro), Go, Rust, Java, C#, Kotlin, Swift, C,
-C++, Objective-C, Ruby, PHP, Scala, Groovy, Lua, Dart, Elixir, Julia, Zig, Bash, PowerShell,
-Verilog, Fortran, CodeQL QL, and regex/delegation extractors for Classic ASP, Salesforce Apex,
-Pascal/Delphi, and Razor/Blazor. Plus data and project formats: SQL, JSON, YAML,
-HCL/Terraform, .NET project files (`.csproj`/`.sln`/`.slnx`), and Markdown structure.
-Framework-aware edges for PHP/Laravel and Dart/Flutter. Full breakdown in
-[Languages](https://github.com/ColinVaughn/Synaptic/wiki/Languages).
+Update a release installation with `synaptic self-update`.
 
 ## Documentation
 
-The graph-native, vendor-neutral self-maintaining API workflow is documented in
-[API maintenance](docs/procedures/api-maintenance.md).
+- [Installation](https://github.com/ColinVaughn/Synaptic/wiki/Installation) and
+  [Quickstart](https://github.com/ColinVaughn/Synaptic/wiki/Quickstart)
+- [Querying](https://github.com/ColinVaughn/Synaptic/wiki/Querying),
+  [languages](https://github.com/ColinVaughn/Synaptic/wiki/Languages), and
+  [output formats](https://github.com/ColinVaughn/Synaptic/wiki/Output-Formats)
+- [MCP server](https://github.com/ColinVaughn/Synaptic/wiki/MCP-Server) and
+  [assistant integration](https://github.com/ColinVaughn/Synaptic/wiki/Assistant-Integration)
+- [Repository memory](https://github.com/ColinVaughn/Synaptic/wiki/Repository-Memory),
+  [API maintenance](https://github.com/ColinVaughn/Synaptic/wiki/Commands#api), and
+  [vulnerability management](https://github.com/ColinVaughn/Synaptic/wiki/Vulnerability-Management)
+- [Workspaces and federation](https://github.com/ColinVaughn/Synaptic/wiki/Workspaces-and-Federation),
+  [configuration](https://github.com/ColinVaughn/Synaptic/wiki/Configuration), and
+  [development](https://github.com/ColinVaughn/Synaptic/wiki/Development)
 
-The full documentation lives in the [project wiki](https://github.com/ColinVaughn/Synaptic/wiki):
+## Build from source
 
-- **Getting started:** [Home](https://github.com/ColinVaughn/Synaptic/wiki/Home) - [Installation](https://github.com/ColinVaughn/Synaptic/wiki/Installation) - [Quickstart](https://github.com/ColinVaughn/Synaptic/wiki/Quickstart)
-- **Concepts:** [Architecture](https://github.com/ColinVaughn/Synaptic/wiki/Architecture) - [Languages](https://github.com/ColinVaughn/Synaptic/wiki/Languages)
-- **Using it:** [Commands](https://github.com/ColinVaughn/Synaptic/wiki/Commands) - [Extraction](https://github.com/ColinVaughn/Synaptic/wiki/Extraction) - [Querying](https://github.com/ColinVaughn/Synaptic/wiki/Querying) - [Analysis and Reports](https://github.com/ColinVaughn/Synaptic/wiki/Analysis-and-Reports) - [Output Formats](https://github.com/ColinVaughn/Synaptic/wiki/Output-Formats) - [Visualizations](https://github.com/ColinVaughn/Synaptic/wiki/Visualizations)
-- **Integrations:** [MCP Server](https://github.com/ColinVaughn/Synaptic/wiki/MCP-Server) - [Assistant Integration](https://github.com/ColinVaughn/Synaptic/wiki/Assistant-Integration) - [Ingestion](https://github.com/ColinVaughn/Synaptic/wiki/Ingestion) - [Semantic Analysis](https://github.com/ColinVaughn/Synaptic/wiki/Semantic-Analysis)
-- **Scaling:** [Workspaces and Federation](https://github.com/ColinVaughn/Synaptic/wiki/Workspaces-and-Federation) - [Incremental Updates](https://github.com/ColinVaughn/Synaptic/wiki/Incremental-Updates) - [PR Dashboard](https://github.com/ColinVaughn/Synaptic/wiki/PR-Dashboard)
-- **Reference:** [Configuration](https://github.com/ColinVaughn/Synaptic/wiki/Configuration) - [Development](https://github.com/ColinVaughn/Synaptic/wiki/Development)
-
-## Development
+The repository pins Rust 1.97.1.
 
 ```sh
-cargo test --workspace --all-features              # all tests
-cargo fmt --all --check                            # formatting (enforced in CI)
-cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo install --path bin/synaptic
+cargo install --path bin/synaptic-ui       # optional desktop app
 ```
 
-The codebase is 27 library crates (`crates/*`) plus the `synaptic` binary (`bin/`). CI
-builds each language grammar in isolation so a grammar bump that silently drops nodes/edges
-fails on its own. See [Development](https://github.com/ColinVaughn/Synaptic/wiki/Development) and [Architecture](https://github.com/ColinVaughn/Synaptic/wiki/Architecture).
+For development and architecture notes, see the
+[development guide](https://github.com/ColinVaughn/Synaptic/wiki/Development).
 
-## Star History
+## Community and license
 
-<a href="https://star-history.com/#ColinVaughn/Synaptic&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=ColinVaughn/Synaptic&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=ColinVaughn/Synaptic&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=ColinVaughn/Synaptic&type=Date" />
-  </picture>
-</a>
+Questions, ideas, or something you built? Join the
+[Discord community](https://discord.gg/ytX7R2PbNz).
 
-## Community
-
-Questions, ideas, or want to show what you built? Join us on
-[Discord](https://discord.gg/ytX7R2PbNz).
-
-## License
-
-GNU Affero General Public License, version 3 or later
-(`AGPL-3.0-or-later`), see [LICENSE](LICENSE) and [NOTICE](NOTICE). If you modify
-Synaptic and let users interact with it over a network, the license requires you
-to offer those users the corresponding source. Historical releases remain
-available under the licenses under which they were received. The separately
-maintained private Synaptic Platform site and B2B control plane are proprietary
-and are not covered by this repository's license.
+Synaptic is licensed under `AGPL-3.0-or-later`; see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+If you modify Synaptic and make it available over a network, you must offer those users the
+corresponding source. The separately maintained Synaptic Cloud service is proprietary and is
+not covered by this repository's license.

@@ -91,6 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           path: dist
@@ -98,10 +99,16 @@ jobs:
       - name: Attest release archives and checksums
         uses: actions/attest@v4
         with:
-          subject-path: "dist/*"
+          subject-path: |
+            dist/*
+            install.sh
+            install.ps1
       - uses: softprops/action-gh-release@v3
         with:
-          files: dist/*
+          files: |
+            dist/*
+            install.sh
+            install.ps1
           generate_release_notes: true
 
   publish-wiki:
